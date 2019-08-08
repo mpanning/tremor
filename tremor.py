@@ -5,6 +5,7 @@ Module for calculating parameters relevant for Julian, 1994 tremor model
 import math
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.signal import hilbert
 # from tqdm import tqdm
 
 # Set some defaut values
@@ -18,6 +19,7 @@ L_default = 200.
 k_default = 1.e9
 h0_equil_frac = 0.95 # The assumed fraction of equilibrium h0 used
 
+# First a couple private utility functions
 def _vectorfield(w, t, p): # Private utility function for integration
     """
     Defines the differential equations for the tremor system
@@ -39,6 +41,36 @@ def _vectorfield(w, t, p): # Private utility function for integration
          u,
          1./omega2*(omega0 - omega1*u)]
     return f
+
+def _wtcoef(t, t1, t2, t3, t4):
+    """
+    Function to calculate cosine taper
+
+    returns weight coefficient between 0 and 1
+
+    cosine taper from 0 to 1 t1 < t < t2
+    1 for t2 < t < t3
+    cosine taper from 1 to 0 t3 < t < t4
+    0 for t < t1 or t > t2
+    """
+
+    if t3 > t4:
+        raise ValueError('wtcoef: t3>t4')
+    if t1 > t2:
+        raise ValueError('wtcoef: t1>t2')
+
+    if (t >= t2) and (t <= t3):
+        wt = 1.0
+    elif (t >= t4) or (t <= t1):
+        wt = 0.0
+    elif (t > t3) and (t < t4):
+        wt = 0.5 * (1.0 + math.cos(math.pi * (t - t3)/(t4 - t3)))
+    elif (t > t1) and (t < t2):
+        wt = 0.5 * (1.0 + math.cos(math.pi * (t - t2)/(t2 - t1)))
+    else:
+        print(t, t1, t2, t3, t4)
+        raise ValueError('wtcoef: this should be impossible')
+    return wt
 
 class TremorModel(object):
     """
@@ -255,43 +287,40 @@ class TremorModel(object):
         self.wsol = (t, wsol) #include with object
         return (t, wsol)
             
-    def _wtcoef(t, t1, t2, t3, t4):
-        """
-        Function to calculate cosine taper
-
-        returns weight coefficient between 0 and 1
-
-        cosine taper from 0 to 1 t1 < t < t2
-        1 for t2 < t < t3
-        cosine taper from 1 to 0 t3 < t < t4
-        0 for t < t1 or t > t2
-        """
-
-        if t3 > t4:
-            raise ValueError('wtcoef: t3>t4')
-        if t1 > t2:
-            raise ValueError('wtcoef: t1>t2')
-
-        if (t >= t2) and (t <= t3):
-            wt = 1.0
-        elif (t >= t4) or (t <= t1):
-            wt = 0.0
-        elif (t > t3) and (t < t4):
-            wt = 0.5 * (1.0 + math.cos(math.pi * (t - t3)/(t4 - t3)))
-        elif (t > t1) and (t < t2):
-            wt = 0.5 * (1.0 + math.cos(math.pi * (t - t2)/(t2 - t1)))
-        else:
-            print(t, t1, t2, t3, t4)
-            raise ValueError('wtcoef: this should be impossible')
-        return wt
-
-    def get_duration(self, t_taper=None):
+    def get_duration(self, taper=None, threshold=None):
         """
         Function to determine when wall velocity u drops to 1/e of original 
         amplitude
 
         Uses wsol calculated in generate_tremor
         """
-        raise NotImplementedError("Work in progress")
-
-    
+        if taper is None:
+            taper = 0.05
+        if threshold is None: # Defaults to threshold of 5% of max envelope
+            threshold = 0.05
+        tarray = self.wsol[0]
+        t_taper = taper*(tarray[-1] - tarray[0])
+        wsol = self.wsol[1]
+        dims = wsol.shape
+        u = wsol[:,:,2]
+        t1 = tarray[0]
+        t2 = t1 + t_taper
+        t3 = tarray[-1] - t_taper
+        t4 = tarray[-1]
+        wt = np.zeros_like(tarray)
+        for i, t in enumerate(tarray):
+            wt[i] = _wtcoef(t, t1, t2, t3, t4)
+        for i in range(dims[0]): # Looping over etas
+            u[i,:] = np.multiply(wt, u[i,:])
+        # Loop over etas
+        duration = np.zeros(dims[0])
+        for i in range(dims[0]):
+            # Compute envelope
+            analytic = hilbert(u[i, :])
+            envelope = np.abs(analytic)
+            th = threshold*envelope.max()
+            # Find index of last value that exceeds th
+            ind = np.where(envelope > th)[0][-1]
+            duration[i] = tarray[ind] - tarray[0]
+            
+        return duration

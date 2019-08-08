@@ -44,7 +44,7 @@ print("flux ",flux)
 print("flow ",flow)
 
 # Now calculate the time series
-duration = 5000.0
+duration = 2000.0
 dt = 0.1
 
 # Initial conditions
@@ -68,4 +68,9 @@ for i, val in enumerate(eta):
             csvwriter.writerow(["{:.3f}".format(t1), "{:.5f}".format(w1[0]),
                                 "{:.5f}".format(w1[1]), "{:.5f}".format(w1[2])])
         
-# durations = model.get_duration()
+start_time = timeit.default_timer()
+durations = model.get_duration(taper=0.02, threshold=0.1)
+elapsed = timeit.default_timer() - start_time
+print("Picking duration: {:.3f} ms".format(1.e3*elapsed))
+
+print("duration", durations)
