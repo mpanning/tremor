@@ -5,7 +5,7 @@ Module for calculating parameters relevant for Julian, 1994 tremor model
 import math
 import numpy as np
 from scipy.integrate import solve_ivp
-from scipy.signal import hilbert
+from scipy.signal import hilbert, find_peaks
 # from tqdm import tqdm
 
 # Set some defaut values
@@ -284,15 +284,25 @@ class TremorModel(object):
             wsol.append(np.transpose(ivp_out['y']))
 
         wsol = np.array(wsol)
-        self.wsol = (t, wsol) #include with object
+        self.wsol = (t, wsol) #include parameters with object
+        self.dt = dt
+        self.w0 = w0
         return (t, wsol)
             
-    def get_duration(self, taper=None, threshold=None):
+    def get_durations(self, taper=None, threshold=None):
         """
         Function to determine when wall velocity u drops to 1/e of original 
         amplitude
 
         Uses wsol calculated in generate_tremor
+
+        Inputs:
+          taper: fraction of total duration to apply a cosine taper to at 
+                 beginning and end of record to avoid edge effects
+          threshold:  fraction of max envelope amplitude to set as cutoff
+
+        Returns:
+          durations: time (in s) until the envelope drops below threshold
         """
         if taper is None:
             taper = 0.05
@@ -313,7 +323,7 @@ class TremorModel(object):
         for i in range(dims[0]): # Looping over etas
             u[i,:] = np.multiply(wt, u[i,:])
         # Loop over etas
-        duration = np.zeros(dims[0])
+        durations = np.zeros(dims[0])
         for i in range(dims[0]):
             # Compute envelope
             analytic = hilbert(u[i, :])
@@ -321,6 +331,61 @@ class TremorModel(object):
             th = threshold*envelope.max()
             # Find index of last value that exceeds th
             ind = np.where(envelope > th)[0][-1]
-            duration[i] = tarray[ind] - tarray[0]
-            
-        return duration
+            durations[i] = tarray[ind] - tarray[0]            
+        return durations
+
+    def get_moments(self, window=None, taper=None):
+        """
+        Function to calculate cumulative seismic moment and average moment 
+          per peak of source-time function of crack motion
+
+        Inputs:
+          window: array of time in s to use for calculation of moment
+                  if a scalar is sent, it will be used for all eta values
+          taper: fraction of window to apply cosine taper to reduce
+                 influence of initial transient
+
+        Returns:
+          (m0_total, m0_average): tuple of cumulative and average M0 per cycle
+        """
+        dims = self.wsol[1].shape
+        if window is None: # Default to full window for all
+            window = np.repeat(self.wsol[0][-1] - self.wsol[0][0], dims[0])
+        elif not hasattr(window, '__len__'): # If window is scalar
+            window = np.repeat(window, dims[0])
+        elif len(window) != dims[0]:
+            raise ValueError("Window should either be scalar or length(n_eta)")
+        if taper is None: # Default to 5%
+            taper = 0.05
+        tarray = []
+        h = []
+        u = []
+        for i in range(dims[0]):
+            tmax = self.wsol[0][0] + window[i]
+            tarray.append(self.wsol[0][self.wsol[0]<tmax])
+            t_taper = (tarray[i][-1] - tarray[i][0])*taper
+            h.append(self.wsol[1][i, :len(tarray[i]), 1])
+            u.append(self.wsol[1][i, :len(tarray[i]), 2])
+            t1 = tarray[i][0]
+            t2 = t1 + t_taper
+            t3 = t1 + window[i]
+            t4 = t3
+            wt = np.ones(len(tarray[i]))
+            for j, t in enumerate(tarray[i]):
+                wt[j] = _wtcoef(t, t1, t2, t3, t4)
+            h[i] = np.multiply(wt, h[i])
+            u[i] = np.multiply(wt, u[i])
+
+        # Calculate cumulative moment
+        area = self.L*self.width
+        m0_total = np.zeros(dims[0])
+        m0_average = np.zeros(dims[0])
+        for i in range(dims[0]):
+            maxima, _ = find_peaks(h[i])
+            minima, _ = find_peaks(-1.*h[i])
+            peaks = np.sort(np.concatenate((maxima, minima)))
+            h_peaktopeak = np.diff(h[i][peaks]) #calc peak to peak amp
+            h_total = np.sum(np.absolute(h_peaktopeak)) # summed amp
+            m0_total[i] = self.mu*area*h_total
+            m0_average[i] = m0_total[i]/len(h_peaktopeak)
+        return (m0_total, m0_average)

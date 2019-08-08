@@ -69,8 +69,18 @@ for i, val in enumerate(eta):
                                 "{:.5f}".format(w1[1]), "{:.5f}".format(w1[2])])
         
 start_time = timeit.default_timer()
-durations = model.get_duration(taper=0.02, threshold=0.1)
+durations = model.get_durations(taper=0.02, threshold=0.1)
 elapsed = timeit.default_timer() - start_time
 print("Picking duration: {:.3f} ms".format(1.e3*elapsed))
 
 print("duration", durations)
+
+start_time = timeit.default_timer()
+m0_total, m0_average = model.get_moments(window=durations)
+elapsed = timeit.default_timer() - start_time
+print("Calculating moments: {:.3f} ms".format(1.e3*elapsed))
+
+print("mo_total", m0_total)
+print("m0_average", m0_average)
+
+
