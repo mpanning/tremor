@@ -68,3 +68,4 @@ for i, val in enumerate(eta):
             csvwriter.writerow(["{:.3f}".format(t1), "{:.5f}".format(w1[0]),
                                 "{:.5f}".format(w1[1]), "{:.5f}".format(w1[2])])
         
+# durations = model.get_duration()

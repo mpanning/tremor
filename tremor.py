@@ -252,5 +252,46 @@ class TremorModel(object):
             wsol.append(np.transpose(ivp_out['y']))
 
         wsol = np.array(wsol)
+        self.wsol = (t, wsol) #include with object
         return (t, wsol)
             
+    def _wtcoef(t, t1, t2, t3, t4):
+        """
+        Function to calculate cosine taper
+
+        returns weight coefficient between 0 and 1
+
+        cosine taper from 0 to 1 t1 < t < t2
+        1 for t2 < t < t3
+        cosine taper from 1 to 0 t3 < t < t4
+        0 for t < t1 or t > t2
+        """
+
+        if t3 > t4:
+            raise ValueError('wtcoef: t3>t4')
+        if t1 > t2:
+            raise ValueError('wtcoef: t1>t2')
+
+        if (t >= t2) and (t <= t3):
+            wt = 1.0
+        elif (t >= t4) or (t <= t1):
+            wt = 0.0
+        elif (t > t3) and (t < t4):
+            wt = 0.5 * (1.0 + math.cos(math.pi * (t - t3)/(t4 - t3)))
+        elif (t > t1) and (t < t2):
+            wt = 0.5 * (1.0 + math.cos(math.pi * (t - t2)/(t2 - t1)))
+        else:
+            print(t, t1, t2, t3, t4)
+            raise ValueError('wtcoef: this should be impossible')
+        return wt
+
+    def get_duration(self, t_taper=None):
+        """
+        Function to determine when wall velocity u drops to 1/e of original 
+        amplitude
+
+        Uses wsol calculated in generate_tremor
+        """
+        raise NotImplementedError("Work in progress")
+
+    
