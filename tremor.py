@@ -376,6 +376,10 @@ class TremorModel(object):
             h[i] = np.multiply(wt, h[i])
             u[i] = np.multiply(wt, u[i])
 
+        # Save tapered and truncated time series with object
+        self.h = h
+        self.u = u
+        
         # Calculate cumulative moment
         area = self.L*self.width
         m0_total = np.zeros(dims[0])
