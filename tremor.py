@@ -393,3 +393,21 @@ class TremorModel(object):
             m0_total[i] = self.mu*area*h_total
             m0_average[i] = m0_total[i]/len(h_peaktopeak)
         return (m0_total, m0_average)
+
+    def reduce_size(self):
+        """
+        function to remove some larger attributes to make a compact object 
+        to save to disk
+        """
+        try:
+            del(self.h)
+        except NameError:
+            pass
+        try:
+            del(self.u)
+        except NameError:
+            pass
+        try:
+            del(self.wsol)
+        except NameError:
+            pass

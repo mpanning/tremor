@@ -9,10 +9,12 @@ Does calculations necessary to get frequency, duration, and average moment
 import numpy as np
 import timeit
 import tremor
+from pympler import asizeof
 
-# Try first with default values
+# Can use default values or change
 start_time = timeit.default_timer()
-model = tremor.TremorModel()
+depth = 60000.
+model = tremor.TremorModel(depth=depth)
 model.calc_derived()
 eta = 1.1390625
 model.set_eta(eta)
@@ -37,4 +39,6 @@ print("Full forward calculation: {:.3f} ms".format(elapsed*1.e3))
 
 print("Model output:", model.f, durations, m0_average)
 
-    
+print("Full model size: {:d}".format(asizeof.asizeof(model)))
+model.reduce_size()
+print("Reduced model size: {:d}".format(asizeof.asizeof(model)))
