@@ -13,7 +13,7 @@ from pympler import asizeof
 
 # Can use default values or change
 start_time = timeit.default_timer()
-depth = 60000.
+depth = 6000.
 model = tremor.TremorModel(depth=depth)
 model.calc_derived()
 eta = 1.1390625
@@ -32,7 +32,7 @@ ui = 0.0 # initial wall velocity (m/s)
 w0 = [vi, hi, ui]
 
 t, wsol = model.generate_tremor(tmax, dt, w0)
-durations = model.get_durations(taper=0.02, threshold=0.1)
+durations = model.get_durations(taper=0.02, threshold=0.2)
 m0_total, m0_average = model.get_moments(window=durations)
 elapsed = timeit.default_timer() - start_time
 print("Full forward calculation: {:.3f} ms".format(elapsed*1.e3))

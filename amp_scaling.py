@@ -8,9 +8,13 @@ import instaseis
 import numpy as np
 import matplotlib.pyplot as plt
 import tremor
-from scipy.optimize import curve_fit
+# from scipy.optimize import curve_fit
+from scipy.stats import linregress
+from tqdm import tqdm
 
 symbols = ['ro', 'bo', 'go', 'ko']
+lines = ['r-', 'b-', 'g-', 'k-']
+verbose = False
 
 # db_short = "EH45TcoldCrust1b"
 # Instaseis parameters
@@ -28,19 +32,22 @@ dbnpts = db.info['npts']
 # depth_in_km = 6.0
 # depth = 1.e3*depth_in_km
 depths = [2000., 6000., 60000.]
+# depths = [2000., 6000.]
 # pratio = 1.01
+pratios = [1.001, 1.01, 1.10]
 # mu = 7.e9
 # rho = 2.7e3
 Ls = [50., 200., 600.]
+# Ls = [200.]
 # aspect_ratio = 7.
 # width = L*aspect_ratio
 # Test a range of eta to get different behaviors
 # n_eta = 10
-n_eta = 10
+n_eta = 5
 eta = np.zeros(n_eta)
 eta[0] = 0.1
 for i in range(1,len(eta)):
-    eta[i] = eta[i-1] * 1.5
+    eta[i] = eta[i-1] * 2.5
 
 
 
@@ -60,94 +67,112 @@ slon = 166.37
 rlat = 4.5 #Landing site ellipse
 rlon = 135.9
 
-sts = [[]]
-durs = [[]]
-m0ts = [[]]
-m0as = [[]]
+sts = []
+durs = []
+m0ts = []
+m0as = []
 
 for i, depth in enumerate(depths):
+    print("\n\n\nWorking on depth {} of {}\n".format(i+1, len(depths)))
     sts.append([])
     durs.append(np.array([]))
     m0ts.append(np.array([]))
     m0as.append(np.array([]))
-    for L in Ls:
-        # Do tremor calculations
-        model = tremor.TremorModel(depth=depth, L=L)
-        model.calc_derived()
-        model.set_eta(eta)
-        model.calc_R()
-        model.calc_f()
+    for pratio in tqdm(pratios):
+        for L in tqdm(Ls):
+            # Do tremor calculations
+            model = tremor.TremorModel(depth=depth, L=L, pratio=pratio)
+            model.calc_derived()
+            model.set_eta(eta)
+            model.calc_R()
+            model.calc_f()
 
-        # Calculate the crack motions
-        tmax = 2000.0
-        tremordt = 0.1
-        vi = 0.0
-        hi = 1.0
-        ui = 0.0
-        w0 = [vi, hi, ui]
-        tarray, wsol = model.generate_tremor(tmax, tremordt, w0)
+            # Calculate the crack motions
+            tmax = 2000.0
+            tremordt = 0.1
+            vi = 0.0
+            hi = 1.0
+            ui = 0.0
+            w0 = [vi, hi, ui]
+            tarray, wsol = model.generate_tremor(tmax, tremordt, w0)
 
-        # Taper tremor time series and calculate moments
-        taper_frac = 0.05
-        durations = model.get_durations(taper=taper_frac, threshold=0.1)
-        durs[i] = np.concatenate((durs[i], durations))
-        m0_total, m0_average = model.get_moments(taper=taper_frac,
-                                                 window=durations)
-        m0ts[i] = np.concatenate((m0ts[i], m0_total))
-        m0as[i] = np.concatenate((m0as[i], m0_average))
+            # Taper tremor time series and calculate moments
+            taper_frac = 0.05
+            durations = model.get_durations(taper=taper_frac, threshold=0.2)
+            durs[i] = np.concatenate((durs[i], durations))
+            m0_total, m0_average = model.get_moments(taper=taper_frac,
+                                                     window=durations)
+            m0ts[i] = np.concatenate((m0ts[i], m0_total))
+            m0as[i] = np.concatenate((m0as[i], m0_average))
 
-        print("Total moment: ", ' '.join('{:.3E}'.format(k) for k in m0_total))
-        print("Average moment: ", ' '.join('{:3E}'.format(k)
-                                           for k in m0_average))
-        print("Durations: ", ' '.join('{}'.format(k) for k in durations))
-        print("Frequencies: ", ' '.join('{:.5f}'.format(k) for k in model.f))
+            if verbose:
+                print("Total moment: ", ' '.join('{:.3E}'.format(k)
+                                                 for k in m0_total))
+                print("Average moment: ", ' '.join('{:3E}'.format(k)
+                                                   for k in m0_average))
+                print("Durations: ", ' '.join('{}'.format(k) for k in durations))
+                print("Frequencies: ", ' '.join('{:.5f}'.format(k)
+                                                for k in model.f))
 
-        # Set the Instaseis source parameters
-        for j in range(n_eta):
-            sliprate = model.u[j]
-            slipdt = tremordt
-            M0 = m0_total[j]
-            source = instaseis.source.Source(latitude=slat, longitude=slon,
-                                             depth_in_m=depth,
-                                             m_rr=m_rr*M0, m_tt=m_tt*M0,
-                                             m_pp=m_pp*M0,
-                                             m_rt=m_rt*M0, m_rp=m_rp*M0,
-                                             m_tp=m_tp*M0,
-                                             origin_time=t0)
-            source.set_sliprate(sliprate, slipdt)
-            source.resample_sliprate(dt=dbdt, nsamp=len(model.u[j]))
+            # Set the Instaseis source parameters
+            for j in tqdm(range(n_eta)):
+                sliprate = model.u[j]
+                slipdt = tremordt
+                M0 = m0_total[j]
+                source = instaseis.source.Source(latitude=slat, longitude=slon,
+                                                 depth_in_m=depth,
+                                                 m_rr=m_rr*M0, m_tt=m_tt*M0,
+                                                 m_pp=m_pp*M0,
+                                                 m_rt=m_rt*M0, m_rp=m_rp*M0,
+                                                 m_tp=m_tp*M0,
+                                                 origin_time=t0)
+                source.set_sliprate(sliprate, slipdt)
+                source.resample_sliprate(dt=dbdt, nsamp=len(model.u[j]))
 
-            # Renormalize sliprate with absolute value appropriate for oscillatory
-            # sliprates with negative values
-            source.sliprate /= np.trapz(np.absolute(source.sliprate),
-                                        dx=source.dt)
+                # Renormalize sliprate with absolute value appropriate for oscillatory
+                # sliprates with negative values
+                source.sliprate /= np.trapz(np.absolute(source.sliprate),
+                                            dx=source.dt)
 
-            receiver = instaseis.Receiver(latitude=rlat, longitude=rlon,
-                                          network='XB',
-                                          station='ELYSE')
+                receiver = instaseis.Receiver(latitude=rlat, longitude=rlon,
+                                              network='XB',
+                                              station='ELYSE')
 
-            sts[i].append(db.get_seismograms(source=source, receiver=receiver,
-                                             kind='acceleration',
-                                             remove_source_shift=False,
-                                             reconvolve_stf=True))
+                sts[i].append(db.get_seismograms(source=source, receiver=receiver,
+                                                 kind='acceleration',
+                                                 remove_source_shift=False,
+                                                 reconvolve_stf=True))
 
 
 # Make some plots
 vamps = []
 for i in range(len(depths)):
-    vamps.append(np.array([st[0].max() for st in sts[i]]))
-    print("Max vertical amplitude at depth {}: ".format(depths[i]),
-          ' '.join('{:.3E}'.format(k) for k in vamps[i]))
-print(sts)
-print(vamps)
-print(durs)
-print(m0ts)
-print(m0as)
-
+    vamps.append(np.array([np.sqrt(np.mean(st[0].data**2)) for st in sts[i]]))
+vamps_flat = np.array(vamps).flatten()
+m0ts_flat = np.array(m0ts).flatten()
+m0as_flat = np.array(m0as).flatten()
+    
 fig = plt.figure()
+print("M0 total vs. vertical amplitude")
 for i in range(len(depths)):
+    a, b, r, p, std_err = linregress(np.log(m0ts[i]), np.log(vamps[i]))
+    coeff = math.exp(b)
     plt.plot(m0ts[i], np.abs(vamps[i]), symbols[i],
              label='{:d}km'.format(int(1.e-3*depths[i])))
+    newX = [m0ts[i].min(), m0ts[i].max()]
+    plt.plot(newX, np.power(newX, a)*coeff, lines[i],
+             label=r'y={:.3e} $x^{{{:.3f}}}$'.format(coeff, a))
+    print("\tDepth {} km coefficents: {:.4e}*x**{:.4f}".format(int(depths[i]*1.e-3),
+                                                               coeff, a))
+    print("\tR squared {}".format(r))
+# Fit all data as well
+a, b, r, p, std_err = linregress(np.log(m0ts_flat), np.log(vamps_flat))
+coeff = math.exp(b)
+newX = [m0ts_flat.min(), m0ts_flat.max()]
+plt.plot(newX, np.power(newX, a)*coeff, 'k-',
+         label=r'y={:.3e} $x^{{{:.3f}}}$'.format(coeff, a))
+print("Overall coefficents: {:.4e}*x**{:.4f}".format(coeff, a))
+print("R squared {}".format(r))          
 plt.yscale('log')
 plt.xscale('log')
 plt.legend(loc='lower right')
@@ -155,9 +180,25 @@ plt.savefig("m0total_vamp.png")
 plt.close(fig)
 
 fig = plt.figure()
+print("M0 average vs. vertical amplitude")
 for i in range(len(depths)):
+    a, b, r, p, std_err = linregress(np.log(m0as[i]), np.log(vamps[i]))
     plt.plot(m0as[i], np.abs(vamps[i]), symbols[i],
              label='{:d}km'.format(int(1.e-3*depths[i])))
+    newX = [m0as[i].min(), m0as[i].max()]
+    coeff = math.exp(b)
+    plt.plot(newX, np.power(newX, a)*coeff, lines[i],
+             label=r'y={:.3e} $x^{{{:.3f}}}$'.format(coeff, a))
+    print("\tDepth {} km coefficents: {:.4e}*x**{:.4f}".format(int(depths[i]*1.e-3), coeff, a))
+    print("\tR squared {}".format(r))
+# Fit all data as well
+a, b, r, p, std_err = linregress(np.log(m0ts_flat), np.log(vamps_flat))
+coeff = math.exp(b)
+newX = [m0ts_flat.min(), m0ts_flat.max()]
+plt.plot(newX, np.power(newX, a)*coeff, 'k-',
+         label=r'y={:.3e} $x^{{{:.3f}}}$'.format(coeff, a))
+print("Overall coefficents: {:.4e}*x**{:.4f}".format(coeff, a))
+print("R squared {}".format(r))          
 plt.yscale('log')
 plt.xscale('log')
 plt.legend(loc='lower right')
