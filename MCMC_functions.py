@@ -1,338 +1,66 @@
-#!/opt/local/bin/python2.7
-
-from numpy import inf, log, cos, array
-from glob import glob
+"""
+The functions necessary to run the MCMC inversion
+"""
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.patheffects as PathEffects
-import matplotlib.colors as colors
-from matplotlib.colors import LinearSegmentedColormap
-import matplotlib.cm as cmx
-from matplotlib import rc
 import math
-import os
-import operator
-import datetime
-import sys
-import copy
-import subprocess
+import tremor
 import random
-from random import randint
-import shutil
-import pylab as P
-import string
-from pprint import pprint
-import rayleigh_python
-from obspy.taup import TauPyModel,taup_create
+# from numpy import inf, log, cos, array
+# from glob import glob
+# import numpy as np
+# import matplotlib
+# matplotlib.use('Agg')
+# import matplotlib.pyplot as plt
+# import matplotlib.patheffects as PathEffects
+# import matplotlib.colors as colors
+# from matplotlib.colors import LinearSegmentedColormap
+# import matplotlib.cm as cmx
+# from matplotlib import rc
+# import math
+# import os
+# import operator
+# import datetime
+# import sys
+# import copy
+# import subprocess
+# import random
+# from random import randint
+# import shutil
+# import pylab as P
+# import string
+# from pprint import pprint
+# import rayleigh_python
+# from obspy.taup import TauPyModel,taup_create
 
-#Updated version of MODEL class for use with mantle models
-#Linear interpolated velocity in mantle, constant crust, inner core, and
-#outer core.  Flexible number of point in mantle for transdimensional
-#inversion.
-#Includes function for writing out model files for use in surface wave 
-#dispersion calculations and taup travel time calculations
-#includes default PREM-like values for values not varied
-class MODEL:
-    def __init__(self):
-        self.number = []
-        self.radius = 6371.0
-        self.crustThick = []
-        self.crustVp = []
-        self.crustVs = []
-        self.crustRho = []
-        self.crustQ = 300
-        self.nmantle = []
-        self.mantleRho = []
-        self.mantleVp = []
-        self.mantleVs = []
-        self.mantleR = []
-        self.mantleQ = 300
-        self.cmbR = 3480.0
-        self.outercoreRho = 11.0
-        self.outercoreVp = 9.1
-        self.outercoreVs = 0.0
-        self.outercoreQ = 100000.0
-        self.innercoreR = 1221.5
-        self.innercoreRho = 12.9
-        self.innercoreVp = 11.1
-        self.innercoreVs = 3.6
-        self.innercoreQ = 84.6
-        self.bulkQ=100000.0
-        self.eta=1.0
-        self.PS_scale = math.sqrt(3.0)
-        self.RS_scale = 0.75
-        self.filename = []
-        self.sighyp = []
-        self.nevts = []
-        self.epiDistkm = []
-        self.epiTime = []
-        self.hypDepth = []
-    def create_swm_file(self, nlayers, create_tvel_file=False, 
-                        create_nd_file=False):
-        try:
-            self.filename = "{:06d}.swm".format(self.number)
-        except ValueError:
-            print "MODEL object number not yet defined.  Cannot make file."
-            return -1
-        layerthick = self.radius/(nlayers - 4)
-        nclay = int(math.ceil(self.crustThick/layerthick)) + 1
-        crustRads = np.linspace(self.radius - self.crustThick, self.radius, 
-                                nclay)
-        mantleThick = self.radius - self.crustThick - self.cmbR
-        nmlay = int(math.ceil(mantleThick/layerthick)) + 1
-        nmsublayers = np.zeros(self.nmantle+1, dtype=np.int_)
-        for i in range(0, self.nmantle):
-            nmsublayers[-1-i] = int(math.ceil(nmlay*(self.mantleR[-2-i]
-                                                     -self.mantleR[-1-i])/
-                                              mantleThick))
-        nmsublayers[0] = nmlay - nmsublayers[1:].sum()
-        indx = 0
-        mantleRads = np.zeros(nmlay)
-        mantleVs = np.zeros(nmlay)
-        mantleVp = np.zeros(nmlay)
-        mantleRho = np.zeros(nmlay)
-        for i in range(0, self.nmantle):
-            mantleRads[indx:indx+nmsublayers[-1-i]] = np.linspace(self.mantleR[-1-i], self.mantleR[-2-i], nmsublayers[-1-i], endpoint = False)
-            mantleVs[indx:indx+nmsublayers[-1-i]] = np.linspace(self.mantleVs[-1-i], self.mantleVs[-2-i], nmsublayers[-1-i], endpoint = False)
-            indx = int(indx + nmsublayers[-1-i])
-        mantleRads[indx:] = np.linspace(self.mantleR[1], self.mantleR[0], 
-                                        nmsublayers[0])
-        mantleVs[indx:] = np.linspace(self.mantleVs[1], self.mantleVs[0],
-                                      nmsublayers[0])
-        mantleVp = mantleVs * self.PS_scale
-        mantleRho = mantleVs * self.RS_scale
-        ocThick = self.cmbR - self.innercoreR
-        nolay = int(math.ceil(ocThick/layerthick)) + 1
-        ocRads = np.linspace(self.innercoreR, self.cmbR, nolay)
-        nilay = nlayers - nclay - nmlay - nolay
-        if (not (nilay > 1)):
-            raise ValueError("Layer calculation error")
-        icRads = np.linspace(0, self.innercoreR, nilay)
-        icbnum = nilay
-        cmbnum = nilay + nolay
-        
-        modelout = open(self.filename,'w')
-        modelout.write(' ' + self.filename + "\n")
-        modelout.write("           1   1.000000               1\n")
-        modelout.write(" {:11d} {:11d} {:11d}\n".format(nlayers,icbnum,cmbnum))
-        #write inner core layers
-        for i in range(0, nilay):
-            modelout.write("{:7d}. {:8.2f} {:8.2f} {:8.2f} {:8.1f} {:8.1f} "
-                           "{:8.2f} {:8.2f} {:8.5f}\n"
-                           .format(int(icRads[i]*1.e3), self.innercoreRho*1.e3, 
-                                   self.innercoreVp*1.e3, self.innercoreVs*1.e3,
-                                   self.bulkQ, self.innercoreQ, 
-                                   self.innercoreVp*1.e3, 
-                                   self.innercoreVs*1.e3, self.eta))
-        #write outer core layers
-        for i in range(0, nolay):
-            modelout.write("{:7d}. {:8.2f} {:8.2f} {:8.2f} {:8.1f} {:8.1f} "
-                           "{:8.2f} {:8.2f} {:8.5f}\n"
-                           .format(int(ocRads[i]*1.e3), self.outercoreRho*1.e3, 
-                                   self.outercoreVp*1.e3, self.outercoreVs*1.e3,
-                                   self.bulkQ, self.outercoreQ, 
-                                   self.outercoreVp*1.e3, 
-                                   self.outercoreVs*1.e3, self.eta))
-        #write mantle layers
-        for i in range(0, nmlay):
-            modelout.write("{:7d}. {:8.2f} {:8.2f} {:8.2f} {:8.1f} {:8.1f} "
-                           "{:8.2f} {:8.2f} {:8.5f}\n"
-                           .format(int(mantleRads[i]*1.e3), 
-                                   mantleRho[i]*1.e3, mantleVp[i]*1.e3,
-                                   mantleVs[i]*1.e3, self.bulkQ, self.mantleQ, 
-                                   mantleVp[i]*1.e3, mantleVs[i]*1.e3, 
-                                   self.eta))
-        #write crust layers
-        for i in range(0, nclay):
-            modelout.write("{:7d}. {:8.2f} {:8.2f} {:8.2f} {:8.1f} {:8.1f} "
-                           "{:8.2f} {:8.2f} {:8.5f}\n"
-                           .format(int(crustRads[i]*1.e3), self.crustRho*1.e3,
-                                   self.crustVp*1.e3, self.crustVs*1.e3,
-                                   self.bulkQ, self.crustQ, self.crustVp*1.e3,
-                                   self.crustVs*1.e3, self.eta))
-            
-        modelout.close()
-        if (create_tvel_file):
-            filein = open(self.filename, 'r')
-            lines = [x.strip('\n') for x in filein.readlines()]
-            filein.close()
-            
-            #Remove header lines and reverse order (increasing depth rather 
-            #than radius)
-            lines = lines[-1:-len(lines)+2:-1]
-            modelrad = float(lines[0].split()[0])
-
-            self.tvelfilename = self.filename + '.tvel'
-            fileout = open(self.tvelfilename,'w')
-            
-            #output header lines
-            fileout.write("Header line 1\nHeader line 2\n")
-
-            for line in lines:
-                values = line.split()
-                depth = 1.e-3*(modelrad-float(values[0]))
-                Vp = 1.e-3*(float(values[2]))
-                Vs = 1.e-3*(float(values[3]))
-                rho = 1.e-3*(float(values[1]))
-                fileout.write("{:f} {:f} {:f} {:f}\n".format(depth, Vp, Vs, 
-                                                             rho))
-
-            fileout.close()
-        if (create_nd_file):
-            tol = 0.1
-            filein = open(self.filename, 'r')
-            lines = [x.strip('\n') for x in filein.readlines()]
-            filein.close()
-            
-            #Remove header lines and reverse order (increasing depth rather 
-            #than radius)
-            lines = lines[-1:-len(lines)+2:-1]
-            modelrad = float(lines[0].split()[0])
-
-            self.ndfilename = self.filename + '.nd'
-            fileout = open(self.ndfilename,'w')
-            
-            mohoFind = False
-            mohoWrite = False
-            cmbFind = False
-            cmbWrite = False
-            iocbFind = False
-            iocbWrite = False
-            for line in lines:
-                values = line.split()
-                depth = 1.e-3 * (modelrad - float(values[0]))
-                rad = 1.e-3 * (float(values[0]))
-                if (not mohoFind and (depth > self.crustThick - tol) and 
-                    (depth < self.crustThick + tol)):
-                    mohoFind = True
-                elif (mohoFind and (depth > self.crustThick - tol) and 
-                    (depth < self.crustThick + tol)):
-                    fileout.write("mantle\n")
-                    mohoWrite = True
-                elif (not cmbFind and (rad > self.cmbR - tol) and 
-                    (rad < self.cmbR + tol)):
-                    cmbFind = True
-                elif (cmbFind and (rad > self.cmbR - tol) and 
-                    (rad < self.cmbR + tol)):
-                    fileout.write("outer-core\n")
-                    cmbWrite = True
-                elif (not iocbFind and (rad > self.innercoreR - tol) and 
-                    (rad < self.innercoreR + tol)):
-                    iocbFind = True
-                elif (iocbFind and (rad > self.innercoreR - tol) and 
-                    (rad < self.innercoreR + tol)):
-                    fileout.write("inner-core\n")
-                    iocbWrite = True
-                    
-                Vp = 1.e-3*(float(values[2]))
-                Vs = 1.e-3*(float(values[3]))
-                rho = 1.e-3*(float(values[1]))
-                fileout.write("{:f} {:f} {:f} {:f}\n".format(depth, Vp, Vs, 
-                                                             rho))
-            
-            fileout.close()
-            if not mohoWrite or not cmbWrite or not iocbWrite:
-                raise ValueError("create nd file did not specify all disc")
 
 # ***************************** DEFINE FUNCTIONS *****************************
 def mintwo (number1, number2):
-	if number1 < number2:
-		comparmin = number1
-	else:
-		comparmin = number2
-	return comparmin
+    if number1 < number2:
+            comparmin = number1
+    else:
+            comparmin = number2
+    return comparmin
 # ----------------------------------------------------------------------------
 def maxtwo (number1, number2):
-	if number1 < number2:
-		comparmax = number2
-	else:
-		comparmax = number1
-	return comparmax
+    if number1 < number2:
+            comparmax = number2
+    else:
+            comparmax = number1
+    return comparmax
 # ----------------------------------------------------------------------------
-def startmodel (hmin,nintf,totch,nl,maxz,prior_vrad,prior_vmin,prior_vmax,
-                cvmin,cvmax,cavgV,chmin,chmax,epimin,epimax,otmin,otmax,
-                hypmin,hypmax,nevts,max_neg_grad,planet_radius):
-	# stz = starting interface depths
-	stz = np.zeros((nintf,totch))
-	
-	# stvel = starting layer velocities
-	stvel = np.zeros((nl,totch))
+def startmodel(totch, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
+    stL = np.zeros(totch)
+    steta = np.zeros(totch)
+    stpratio = np.zeros(totch)
+    stwl = np.zeros(totch)
 
-        # stepi = starting epicentral distance in km
-        stepi = np.zeros((nevts,totch))
+    for cnt in range(totch):
+        stL[cnt] = random.uniform(Lmin, Lmax)
+        steta[cnt] = random.uniform(etamin, etamax)
+        stpratio[cnt] = random.uniform(prmin, prmax)
+        stwl[cnt] = random.uniform(wlmin, wlmax)
 
-        # stotime = starting origin time in s
-        stotime = np.zeros((nevts,totch))
-	
-	# sthyp = starting hyper parameter for data noise std dev, one per 
-        # starting model and datatype
-        nhyp = len(hypmin)
-	sthyp = np.zeros((nhyp,totch))
-
-	# scale degree of variance based on total depth of full model
-	cnt = 0
-	while (cnt < totch):
-            i = 0
-            while (i < nhyp):
-		sthyp[i,cnt] = random.uniform(hypmin[i],hypmax[i])
-                i = i + 1
-
-            i = 0
-            while (i < nevts):
-                stepi[i,cnt] = random.uniform(epimin[i],epimax[i])
-                stotime[i,cnt] = random.uniform(otmin[i],otmax[i])
-                i = i + 1
-
-            i = 0
-            stz[i,cnt] = random.uniform(chmin,chmax)
-            i = 1
-            while (i < nintf - 1):
-                stz[i,cnt] = random.uniform((stz[0,cnt]+hmin), 
-                                            (maxz-hmin))
-                i = i + 1
-            stz[nintf - 1, cnt] = maxz
-            tmp = stz[:,cnt]
-            tmp = sorted(tmp)
-            stz[:,cnt] = tmp
-            i = 0
-            stvel[i,cnt] = random.uniform(cvmin,cvmax)
-            i = 1
-            # random velocity model, but no negative gradients allowed
-            # Can modify later to allow minimal negative gradients over
-            # small depth ranges 
-            # Rework to have depth dependent vmin/vmax
-            # allow negative gradients (will lead to taup failures)?
-            while (i < nl):
-                depth = stz[i-1,cnt]
-                radius = planet_radius - depth
-                rad1 = prior_vrad[prior_vrad >= radius][-1]
-                rad2 = prior_vrad[prior_vrad <= radius][0]
-                vmin1 = prior_vmin[prior_vrad >= radius][-1]
-                vmin2 = prior_vmin[prior_vrad <= radius][0]
-                vmax1 = prior_vmax[prior_vrad >= radius][-1]
-                vmax2 = prior_vmax[prior_vrad <= radius][0]
-                
-                vmin = vmin1 + (vmin2 - vmin1)*(radius - rad1)/(rad2 - rad1)
-                vmax = vmax1 + (vmax2 - vmax1)*(radius - rad1)/(rad2 - rad1)
-                # stvel[i,cnt] = random.uniform(maxtwo(stvel[i-1,cnt], 
-                #                                     vmin), vmax)
-                # first mantle velocity must not be slower than crust and no
-                # no negative gradient allowed in base layer
-                if (i == 1 or i == nl -1):
-                    stvel[i,cnt] = random.uniform(maxtwo(stvel[i-1,cnt], 
-                                                         vmin), vmax)
-                else:
-                    dint = stz[i-1,cnt] - stz[i-2,cnt]
-                    gradvmin = stvel[i-1,cnt] + (max_neg_grad * dint)
-                    print "grad test 2 ",i,stz[:,cnt],stvel[:,cnt],dint,gradvmin
-                    stvel[i,cnt] = random.uniform(maxtwo(gradvmin,vmin), vmax)
-                # stvel[i,cnt] = random.uniform(vmin, vmax) # allow negative
-                i = i + 1
-            cnt = cnt + 1
-
-	return (stz,stvel,stepi,stotime,sthyp)
+    return (stL, steta, stpratio, stwl)
 # ----------------------------------------------------------------------------
 #def sobs_set (k):
 #	nextmodel = k+1
@@ -351,6 +79,7 @@ def startmodel (hmin,nintf,totch,nl,maxz,prior_vrad,prior_vmin,prior_vmax,
 #	sobs.close()
 #	return (modl)
 # ----------------------------------------------------------------------------
+"""
 def finderror (k,x,ndsub,dpre,dobs,misfit,newmis,wsig,PHI,diagCE,weight_opt):
 	curhyp = copy.deepcopy(x.sighyp)
 	# Find misfit
@@ -556,99 +285,16 @@ def runmodel_bw (x,phases):
                 raise UserWarning("Phases not found")
 
     return (dpre_bw)
+"""
 # ----------------------------------------------------------------------------
-def startchain (x,errorflag1,stz,stvel,stepi,stotime,sthyp,prior_vrad,
-                prior_vmin,prior_vmax,cvmin,cvmax,cavgV,chmin,chmax,epimin,
-                epimax,otmin,otmax,hypmin,hypmax,hmin,maxz,chain,max_neg_grad,
-                planet_radius):
-	nmantle = copy.deepcopy(x.nmantle)
-	if errorflag1 == 'on':
-		INTF = np.zeros((nmantle+2))
-		VS = np.zeros((nmantle+3))
-                EPI = np.zeros(x.nevts)
-                OT = np.zeros(x.nevts)
-                i = 0
-                while (i < x.nevts):
-                    EPI[i] = random.uniform(epimin[i],epimax[i])
-                    OT[i] = random.uniform(otmin[i],otmax[i])
-                    i = i+1
-
-                nhyp = len(hypmin)
-                HYP = np.zeros(nhyp)
-                i = 0
-                while (i < nhyp):
-                    HYP[i] = random.uniform(hypmin[i],hypmax[i])
-                    i = i + 1
-		i = 0
-                INTF[i] = random.uniform(chmin, chmax)
-                i = 1
-		while (i < nmantle + 1):
-			INTF[i] = random.uniform((INTF[0]+hmin), (maxz-hmin))
-			i = i + 1
-                INTF[nmantle + 1] = maxz
-		INTF[:] = sorted(INTF[:])
-		i = 0
-                VS[i] = random.uniform(cvmin, cvmax)
-                i = 1
-		while (i < nmantle + 3):
-                    depth = INTF[i-1]
-                    radius = planet_radius - depth
-                    rad1 = prior_vrad[prior_vrad >= radius][-1]
-                    rad2 = prior_vrad[prior_vrad <= radius][0]
-                    vmin1 = prior_vmin[prior_vrad >= radius][-1]
-                    vmin2 = prior_vmin[prior_vrad <= radius][0]
-                    vmax1 = prior_vmax[prior_vrad >= radius][-1]
-                    vmax2 = prior_vmax[prior_vrad <= radius][0]
-                
-                    vmin = vmin1 + (vmin2 - vmin1)*(radius - rad1)/(rad2 - rad1)
-                    vmax = vmax1 + (vmax2 - vmax1)*(radius - rad1)/(rad2 - rad1)
-                    if (i == 1 or i == nmantle + 2):
-                        VS[i] = random.uniform(maxtwo(VS[i-1],vmin), vmax)
-                    else:
-                        dint = INTF[i-1] - INTF[i-2]
-                        gradvmin = VS[i-1] + (max_neg_grad * dint)
-                        VS[i] = random.uniform(maxtwo(gradvmin,vmin), vmax)
-                    # VS[i] = random.uniform(vmin, vmax) # allow negative
-                    # VS[i] = random.uniform(maxtwo(VS[i-1],vmin), vmax)
-                    i = i + 1
-		errorflag1 = 'off'
-	else:
-		# Hyper-parameter for data error estimation 
-                # nhyp = len(hypmin)
-                # HYP = np.zeros(nhyp)
-		HYP = sthyp[:,chain]
-
-                # Epicentral distance
-		EPI = stepi[:,chain]
-
-                # Origin time
-                OT = stotime[:,chain]
-
-		# Depth to interfaces between layers 
-		INTF = np.zeros((nmantle+2))
-		INTF[:] = stz[:,chain]
-
-		# S-wave velocity in layers
-		VS = np.zeros((nmantle+3))
-                VS[:] = stvel[:,chain]
-
-        x.crustThick = INTF[0]
-        x.crustVs = VS[0]
-        x.crustVp = VS[0] * x.PS_scale
-        x.crustRho = VS[0] * x.RS_scale
-        x.cmbR = x.radius - maxz
-        x.mantleR = np.zeros(nmantle+2)
-        x.mantleR = x.radius - INTF
-        # x.mantleR[:nmantle+1] = x.radius - INTF
-        # x.mantleR[nmantle+1] = x.cmbR
-        x.mantleVs = VS[1:]
-        x.mantleVp = x.mantleVs * x.PS_scale
-        x.mantleRho = x.mantleVs * x.RS_scale
-        x.epiDistkm = EPI
-        x.epiTime = OT
-        x.sighyp = HYP
-	return (x,errorflag1)
+def startchain(Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
+    L = random.uniform(Lmin, Lmax)
+    eta = random.uniform(etamin, etamax)
+    pratio = random.uniform(prmin, prmax)
+    wl = random.uniform(wlmin, wlmax)
+    return L, eta, pratio, wl
 # ----------------------------------------------------------------------------
+"""
 def randINTF (prior_vrad,prior_vmin,prior_vmax,prior_delv,chmin,hmin,maxz,F,
               vsIN,thetaV2,max_neg_grad,planet_radius):
 	nintf = len(F)
@@ -1460,7 +1106,7 @@ def mkpdffigs(rep_cnt,repeat,weight_opt,curcmap,linopt,cmap2,CS33,CS22,newvin,ne
 
 # ----------------------------------------------------------------------------
 
-
+"""
 
 
 

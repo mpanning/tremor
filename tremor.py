@@ -6,6 +6,8 @@ import math
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.signal import hilbert, find_peaks
+# import warnings
+# import matplotlib.pyplot as plt
 # from tqdm import tqdm
 
 # Set some defaut values
@@ -331,7 +333,9 @@ class TremorModel(object):
             th = threshold*envelope.max()
             # Find index of last value that exceeds th
             ind = np.where(envelope > th)[0][-1]
-            durations[i] = tarray[ind] - tarray[0]            
+            durations[i] = tarray[ind] - tarray[0]
+            if durations[i] < t_taper:
+                durations[i] = t_taper
         return durations
 
     def get_moments(self, window=None, taper=None):
@@ -375,7 +379,7 @@ class TremorModel(object):
                 wt[j] = _wtcoef(t, t1, t2, t3, t4)
             h[i] = np.multiply(wt, h[i])
             u[i] = np.multiply(wt, u[i])
-
+    
         # Save tapered and truncated time series with object
         self.h = h
         self.u = u
@@ -387,11 +391,21 @@ class TremorModel(object):
         for i in range(dims[0]):
             maxima, _ = find_peaks(h[i])
             minima, _ = find_peaks(-1.*h[i])
-            peaks = np.sort(np.concatenate((maxima, minima)))
+            # Add in starting point so we always have at least 2 points
+            peaks = np.sort(np.concatenate((np.array([0]), maxima, minima)))
             h_peaktopeak = np.diff(h[i][peaks]) #calc peak to peak amp
             h_total = np.sum(np.absolute(h_peaktopeak)) # summed amp
             m0_total[i] = self.mu*area*h_total
+            # warnings.filterwarnings("error")
+            # try:
             m0_average[i] = m0_total[i]/len(h_peaktopeak)
+            # except RuntimeWarning:
+            #     print("Problem: {} {}".format(m0_total[i], len(h_peaktopeak)))
+            #     print(i, window[i], len(tarray[i]), self.R[i])
+            #     plt.plot(tarray[i], h[i])
+            #     plt.show()
+            #     raise()
+            # warnings.filterwarnings("default")
         return (m0_total, m0_average)
 
     def reduce_size(self):

@@ -1,175 +1,144 @@
-#!/opt/local/bin/python2.7
+"""
+Program to perform Markov chain Monte Carlo inversion of seismic observables
+for acceptable range of tremor parameters based on the work of Julian, 1994
+"""
 
-# This program is a TRANS-DIMENSIONAL version of MCMC_VS_interface.py in which the 
-# number of model layers is an unknown parameter in the MCMC algorithm. 
-#
-# This program uses Markov Chain Monte Carlo (MCMC) algorithm to explore the model
-# space and find the family of models that have minimum misfit between observed 
-# dispersion values and calculated dispersion values
-#
-# The number of model layers can be changed
-#
-# NETWORK AVERAGE
-#
-# NEXT STEP: READ IN P AND S TRAVEL TIME DATA AND MERGE DATA INTO SINGLE DOBS AND DPRE ARRAY
-# -----------------------------------------------------------------------------
-
-from numpy import inf, log, cos, array
-from glob import glob
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.patheffects as PathEffects
-import matplotlib.colors as colors
-from matplotlib.colors import LinearSegmentedColormap
-import matplotlib.cm as cmx
-from matplotlib import rc
 import math
-import os
-import operator
+from tqdm import tqdm
 import datetime
-import sys
-import copy
-import subprocess
-import random
-from random import randint
-import shutil
-import pylab as P
+import os
+from MCMC_functions import startmodel, startchain
+import tremor
+from obspy.core import UTCDateTime
+import instaseis
 import string
-from pprint import pprint
-from scipy.interpolate import interp1d
-import cPickle as pickle
 
-from MCMC_functions import (startmodel,MODEL,startchain,runmodel,finderror,
-			    randINTF,accept_reject,mintwo,runmodel_bw,errorfig,
-			    accratefig,nlhist,sighhist,modfig,vdispfig)
+# from numpy import inf, log, cos, array
+# from glob import glob
+# import numpy as np
+# import matplotlib
+# matplotlib.use('Agg')
+# import matplotlib.pyplot as plt
+# import matplotlib.patheffects as PathEffects
+# import matplotlib.colors as colors
+# from matplotlib.colors import LinearSegmentedColormap
+# import matplotlib.cm as cmx
+# from matplotlib import rc
+# import math
+# import os
+# import operator
+# import datetime
+# import sys
+# import copy
+# import subprocess
+# import random
+# from random import randint
+# import shutil
+# import pylab as P
+# import string
+# from pprint import pprint
+# from scipy.interpolate import interp1d
+# import cPickle as pickle
+
+# from MCMC_functions import (startmodel,MODEL,startchain,runmodel,finderror,
+# 			    randINTF,accept_reject,mintwo,runmodel_bw,errorfig,
+			    # accratefig,nlhist,sighhist,modfig,vdispfig)
 
 # ----------------------------------------------------------------------------
 # ****************************************************************************
 # --------------------------Set up INPUT information--------------------------
 # directory where working
-MAIN = '/home/mpanning/MCMC/test_run'
+MAIN = '/Users/panning/work_local/Insight/tremor/MCMC'
 os.chdir(MAIN)
 # MAIN = os.getcwd()
 
 now = datetime.datetime.now()
-foldername = now.strftime("%m_%d_%Y,%H:%M")
+foldername = now.strftime("%m_%d_%Y_%H:%M")
 os.mkdir(foldername)
 
 SAVEMs = MAIN + '/' + foldername
 
-#Dispersion group arrival picks masterfile
-masterfile = MAIN + '/gtimes.dat'
-f = open(masterfile)
-line = f.readline()
-nevts = int(line.split()[0])
-dispfiles = []
-for i in range(0,nevts):
-	dispfiles.append(f.readline().split()[0])
-f.close()
+# Overall parameters
+max_duration = 2000. # length of tremor record to calculate
+tremor_dt = 0.2
+tremor_vi = 0.0
+tremor_hi = 1.0
+tremor_ui = 0.0
+tremor_w0 = np.array([tremor_vi, tremor_hi, tremor_ui]) # initial conditions
+dur_taper = 0.05
+dur_threshold = 0.1
 
-# Read in group arrival time data into a list of arrays
-gdisp = []
-for i in range(0,nevts):
-	gdisp.append(np.genfromtxt(dispfiles[i], 
-				   dtype={'names': ('period', 'gtime'), 
-					  'formats': ('f', 'f')}))
+# Instaseis stuff.  Need to make alternate method for amplitude that skips this
+ifInstaseis = True
+if ifInstaseis:
+        print("Initializing Instaseis database")
+        db_short = "EH45Tcold"
+        instaseisDB = ("http://instaseis.ethz.ch/blindtest_1s/" +
+                       "{}_1s/".format(db_short))
+        maxRetry = 25
+        db = instaseis.open_db(instaseisDB)
+        f1 = 0.005
+        f2 = 2.0
+        t0 = UTCDateTime(2019,3,1)
+        dbdt = db.info['dt']
+        dbnpts = db.info['npts']
 
-# make array of center frequencies (cf) and center periods (cp)
-# as well as data
-cp = []
-cf = []
-dobs_sw = []
-cpemin = np.zeros(nevts)
-cpemax = np.zeros(nevts)
-fnum = np.zeros(nevts)
-tmin_sw = np.zeros(nevts)
-for i in range(0,nevts):
-	cp.append(gdisp[i]['period'])
-	cpemin[i] = cp[i].min()
-	cpemax[i] = cp[i].max()
-	cf.append(1/cp[i])
-	fnum[i] = len(cf[i])
-	dobs_sw.append(gdisp[i]['gtime'])
-	tmin_sw[i] = dobs_sw[i].min()
+        # Define unit M0 CLVD moment tensor, lined up such that it represents a
+        # vertical crack aligned E-W
+        scale = 1.0/math.sqrt(3.0) # Factor to correct for non-unit M0
+        m_rr = -1.0*scale
+        m_tt = 2.0*scale
+        m_pp = -1.0*scale
+        m_rt = 0.0*scale
+        m_rp = 0.0*scale
+        m_tp = 0.0*scale
 
-cpmin = cpemin.min()
-cpmax = cpemax.max()
-#cf = vsts['freq']
-#cp = 1/cf
-#fnum = len(cf)
-N = copy.deepcopy(fnum)
+        slat = 11.28 # Assumed at Cerberus Fossae
+        slon = 166.37
 
-# Get body wave travel times
-# Body wave picks masterfile
-masterfile = MAIN + '/bwtimes.dat'
-f = open(masterfile)
-line = f.readline()
-nevts_bw = int(line.split()[0])
-if (not(nevts_bw == nevts)):
-	print 'Inconsistent events for body wave and surface waves'
-	print nevts,nevts_bw
-	raise ValueError("nevts do not match")
-bwfiles = []
-for i in range(0,nevts):
-	bwfiles.append(f.readline().split()[0])
-f.close()
+        rlat = 4.5 #Landing site ellipse
+        rlon = 135.9
 
-# Read in group arrival time data into a list of arrays
-bwtimes = []
-phases = []
-dobs_bw = []
-tmin_bw = np.zeros(nevts)
-tmin = np.zeros(nevts)
-pnum = np.zeros(nevts)
-for i in range(0,nevts):
-	bwtimes.append(np.genfromtxt(bwfiles[i], 
-				     dtype={'names': ('phase', 'time'), 
-					    'formats': ('|S10', 'f')}))
-	phases.append(bwtimes[i]['phase'])
-	dobs_bw.append(bwtimes[i]['time'])
-	tmin_bw[i] = dobs_bw[i].min()
-	tmin[i] = mintwo(tmin_sw[i], tmin_bw[i])
-	pnum[i] = len(dobs_bw[i])
 
-# make single data array
-dobs = np.concatenate([np.concatenate(dobs_sw), np.concatenate(dobs_bw)])
+# Make data vector.  Right now is hard-coded, but will adjust to read from file
+freq_obs = 0.4 # Dominant frequency of signal (Hz)
+amp_obs = 1.e-9 # Acceleration amplitude (m/s^2)
+dur_obs = 1000.0 # Duration of observed signal (s)
+dobs = np.array([freq_obs, amp_obs, dur_obs])
 ndata = len(dobs)
-ndsub = np.zeros(2, dtype=np.int)
-ndsub[0] = len(np.concatenate(dobs_sw))
-ndsub[1] = len(np.concatenate(dobs_bw))
+
+# Uncertainty estimates - 1 sigma
+wsig_freq = 0.3
+wsig_amp = 3.e-10
+wsig_dur = 200.
+wsig = np.array([wsig_freq, wsig_amp, wsig_dur])
 
 # create boss matrix to control all combinations of starting number of layers 
-#layopt = ([2, 3, 4, 5])
-layopt = ([3])
-botopt = ([2891.0]) #core-mantle boundary depth
-#botopt = ([0.2, 0.4, 0.6])
+depopt = ([6.0, 60.0])
+muopt = ([7.e9, 70.e9])
 repeat = 1
 all_letters = list(string.ascii_lowercase)
 letters = all_letters[0:repeat]
 abc=[]
 
-DRAW = ['CHANGE EPICENTRAL DISTANCE: Perturb an epicentral distance <->',
-	'CHANGE ORIGIN TIME: Perturb an origin time of event <+>',
-	'CHANGE VELOCITY: Perturb the velocity of a layer -->',
-	'MOVE: Perturb an interface depth ^^^',
-       	'BIRTH: Create a new layer ++', 
-        'DEATH: Remove a layer X', 
-       	'CHANGE HYPER-PARAMETER: Perturb the estimation of data error ~~~']
+DRAW = ['CHANGE CHANNEL LENGTH: Perturb the length of oscillating channel',
+        'CHANGE VISCOSITY: Change the viscosity of the fluid in the channel',
+        'CHANGE PRATIO: Change the overpressure ratio of the lower reservoir',
+        'CHANGE ASPECT: Change the width to length aspect ratio of channel',]
 # ---------------------------------------------------------------------------------------
 # ----------------
 # totch = 10			# Total number of chains
 # numm = 1000
 totch = 1
-numm = 10000			# Number of iterations per chain
+numm = 1000			# Number of iterations per chain
 # ----------------
 # ---------------------------------------------------------------------------------------
 # ----------------
-BURN = 2000
+BURN = 200
 # BURN = 2000		# Number of models designated BURN-IN, gets discarded
 # M = 10			# Interval to keep models (e.g. keep every 100th model, M=100)
-M = 10
+M = 3
 MMM = np.arange(BURN-1,numm,M)
 # ----------------
 # ---------------------------------------------------------------------------------------
@@ -177,24 +146,6 @@ MMM = np.arange(BURN-1,numm,M)
 ######### by variance or stand. dev. ######### 
 weight_opt = 'ON'
 #weight_opt = 'OFF'
-# --------------------------------------------
-########## Options for pdf figure  ########### 
-########## 'on' to count interfaces ##########
-##########   (connect the layers)   ##########
-###########'off' to only count the ###########
-########layers and not the jumps between######
-#pdf_connect = 'on'
-pdf_connect = 'off'
-# --------------------------------------------
-########## Options for making half- ########### 
-######### space velocity a parameter ##########
-#vhs_opt = 'on'
-#vhs_opt = 'off'
-# --------------------------------------------
-########## Options for controlling ############
-######## minimum thickness of layers ##########
-#THICK_FLAG = "ON"
-#THICK_FLAG = "OFF"
 # --------------------------------------------
 ########## Options for weighting ############
 ##########   sigd   or   sigd_n  ############
@@ -205,127 +156,57 @@ pdf_connect = 'off'
 	#weight_sig = "sigd_n"
 #else:
 #	wsig = np.zeros(fnum)
-######### Option for number of layers ########
-#########   to output in surface wave file ###
-swm_nlay = 300
-
-######### Options for sw code rayleigh #######
-######### Tune for desired frequency band ####
-eps = 1.0e-9
-dt = 10.0
-npow = 7
-fnyquist = 0
-nbran = 0
-cmin = 2.5
-cmax = 250.0
-maxlyr = 1
-######### Option for setting model ###########
-######### planet radius (Earth or Mars) ######
-planet_radius = 6371.0 #Earth
-#planet_radius = 3389.5 #Mars
-######### Option for initial guess of ########
-######### relative surface group time error ##
-######### and body wave absolute error #######
-gtime_relsig = 0.02
-bwtime_sig = 0.5
-######### Option for assumed source depth ####
-source_depth = 10.0
-
-wsig_sw = []
-bsig_sw = []
-for i in range(0,nevts):
-	wsig_sw.append(np.zeros(fnum[i]))
-	wsig_sw[i] = cp[i]*gtime_relsig #relative to center period
-	bsig_sw.append(np.zeros(len(phases[i])))
-	bsig_sw[i][:] = bwtime_sig
-
-# Make single vector of wsig
-wsig = np.concatenate([np.concatenate(wsig_sw), np.concatenate(bsig_sw)])
-if (not(len(wsig) == ndata)):
-	print 'Problem with wsig'
-	raise ValueError('Inconsistent ndata')
 
 # --------------------------------------------
-loptnum = len(layopt)
-boptnum = len(botopt)
-numrun = loptnum*boptnum*repeat
+doptnum = len(depopt)
+numrun = doptnum*repeat
 
 boss = np.zeros((numrun, 2))
 k=0
-for i in layopt:
-	for j in botopt:
-		print 'starting layer option: ' + str(i)
-		print 'bottom option: ' + str(j)
-		r = 0
-		while r < repeat:
-			abc.append(letters[r])
-			r = r + 1
-		boss[k:k+repeat,0]=i
-		boss[k:k+repeat,1]=j
-		k=k+repeat
+for i, dep in enumerate(depopt):
+        print('starting depth option: {}'.format(dep))
+        r = 0
+        while r < repeat:
+                abc.append(letters[r])
+                r = r + 1
+                boss[k:k+repeat,0]=dep
+                boss[k:k+repeat,1]=muopt[i]
+                k=k+repeat
 
-rep_cnt = 0
-run = 0
-nlay_init = int(boss[run,0])
-#bounds on number of layers in mantle
-nmin = 1
-nmax = 10
-deln = nmax - nmin
-maxz = boss[run,1]
-maxz_m = 1000*(maxz)
-#crust layer plus nmantle + 1 mantle layers
-nl_init = nlay_init + 2 
-#need one extra velocity to specify linear gradients
-nv_init = nl_init + 1 
-nintf_init= nl_init - 1
-hmin = 10.0      # minimum layer thickness of 10 km
-#What is N?
-#N = np.linspace(hmin, (maxz-hmin), ((maxz*500)+1))
 reprunsPHI = []
 reprunsdiagCE = []
 reprunsHIST = []
 
 # Standard deviations for the Gaussian proposal distributions
-thetaI = 10.0	# Interface perturbations, qc(c'i|ci)
-thetaV1 = 0.15		# Velocity perturbations, qv1(v'i|vi)
-thetaV2 = 0.05		# New layer velocity, qv2(v'n+1|vi)
-thetaHYP = 0.1		# Hyper parameter, qh(h'j|hj)
-thetaEPI = 40.0    # Epicentral distance (km)
-thetaOT = 10.0      # Origin time (s)
+
+# Given that many of these vary over orders of magnitude, maybe should use
+# log value as input, and thus it becomes log-normal perturbation.  Consider
+thetaL = 25.0 # Length perturbations
+thetaETA = 10.0 # Viscosity perturbations
+thetaP = 0.005 # Pressure ratio perturbatio
+thetaWL = 0.5 # Aspect ratio perturbation
 # ---------------------------------------------------------------------------------------
 
-savefname = 'saved_initial_'+str(nlay_init)+'_lay_'+str(maxz)+'_m'
+savefname = "saved_initial_m"
 SAVEF = SAVEMs + '/' + savefname
 os.mkdir(SAVEF)
 
 bossfile = open(SAVEMs+'/boss.txt', 'w')
 bossfile.write(now.strftime("%m_%d_%Y, %H:%M")+'\n')
 bossfile.write('   ' + '\n')
-bossfile.write('# OF INITIAL LAYERS       MAX DEPTH (m)'+'\n')
+bossfile.write('Depth of source (km)   Mu at source depth (Pa)\n')
 k=0
 while (k < numrun):
-	maxdepth = boss[k,1]
-	writestring = ('         ' + str(boss[k,0]) + '                ' 
-		       + str(boss[k,1])+'\n')
-	bossfile.write(writestring)
-	k = k + 1
+	# maxdepth = boss[k,1]
+        depth = boss[k, 0]
+        mu = boss[k, 1]
+        writestring = "          {:6.2f}              {:e}\n".format(depth, mu)
+        bossfile.write(writestring)
+        k = k + 1
 bossfile.write('   ' + '\n')
 bossfile.write('TOTAL # OF CHAINS: '+str(totch)+'    ITERATIONS: '+str(numm)+
 	       '\n')
 bossfile.write('   ' + '\n')
-bossfile.write('SURFACE WAVE CODE PARAMETERS:\n')
-bossfile.write('{:e} {:f} {:d} {:f} {:d} {:f} {:f} {:d}\n'.format(eps,dt,npow,
-								  fnyquist,
-								  nbran,cmin,
-								  cmax,maxlyr))
-bossfile.write('   ' + '\n')
-bossfile.write('PLANET RADIUS: '+str(planet_radius)+'\n')
-bossfile.write('   ' + '\n')
-bossfile.write('RELATIVE GTIME ERROR: '+str(gtime_relsig)+'\n')
-bossfile.write('   ' + '\n')
-bossfile.write('MINIMUM BODY WAVE TIME ERROR: '+str(bwtime_sig)+'\n')
-bossfile.write('   ' + '\n')
-bossfile.write('ASSUMED SOURCE DEPTH: '+str(source_depth)+' km\n')
 bossfile.close()
 
 Elog = open(SAVEMs+'/'+'errorlog.txt','w')
@@ -340,207 +221,154 @@ rnummods = len(RUNMODS)
 runINTF=[]	
 runNM=[]	
 runSIGH=[]
+rep_cnt = 0
 
-while (run < numrun):
-	
-	# -------------------------------------------------------------------
-	# --------------------------Set up MODEL information-----------------
-	boss0 = boss[run,0]
-	boss1 = boss[run,1]
+print("Starting loop on {} runs".format(numrun))
+for run in range(numrun):	
+        print("Working on run {}".format(run))
+        # -------------------------------------------------------------------
+        # --------------------------Set up MODEL information-----------------
+        boss0 = boss[run,0]
+        boss1 = boss[run,1]
 
-	# nmantle = number of layer interfaces in mantle
-	nmantle_init = int(boss0)
-	
-	# maxz = maximum depth for full model
-	maxz = boss1
-	#maxz_m=maxz*1000
-	
-	# number of perturbable velocities (crust + nmantle + 2 to define all 
-	# linear gradients in mantle)
-	nv_init = nmantle_init + 3
-	
-	# the number of interfaces will be the number of mantle
-	# interfaces + 1 (the crust-mantle interface). 
-	nintf_init= nmantle_init + 1
-	
-	# Crust bounds on velocity
-	cvmin = 2.0
-	cvmax = 5.0
-	cavgV = (cvmax + cvmin)/2.0
+        # Set parameter bounds
+        Lmin = 1.0
+        Lmax = 1000.0
 
-	# Crust thickness bounds
-	chmin = 5.0
-	chmax = 70.0
+        etamin = 1.0
+        etamax = 1000.0
 
-	# Expected group velocity bounds used for epimin/max calculation
-	gvmin = 2.5
-	gvmax = 5.5
+        prmin = 1.00001
+        prmax = 1.1
 
-	# Set epicentral bounds
-	otmin = np.zeros(nevts)
-	otmax = np.zeros(nevts)
-	epimin = np.zeros(nevts)
-	epimax = np.zeros(nevts)
-	for i in range(0,nevts):
-		# Check if we can get an S-P time and scale ot bounds to that
-		if ((len(phases[i][phases[i] == 'P']) > 0) and 
-		    (len(phases[i][phases[i] == 'S']) > 0)):
-			TSP = (dobs_bw[i][phases[i] == 'S'][0] -
-			       dobs_bw[i][phases[i] == 'P'][0])
-			otmin[i] = dobs_bw[i][phases[i] == 'P'][0] - TSP/0.6
-			otmax[i] = dobs_bw[i][phases[i] == 'P'][0] - TSP
-			epimin[i] = gvmin * (tmin_sw[i] - otmax[i])
-			epimax[i] = gvmax * (tmin_sw[i] - otmin[i])
-		else:
-			# Epicentral distance bounds (0-180 degrees)
-			epimin[i] = 0.0
-			epimax[i] = math.pi*planet_radius
-			otmax[i] = tmin[i]
-			otmin[i] = tmin[i] - (epimax[i]/gvmin) 
+        wlmin = 5.0
+        wlmax = 100.0
 
-	if rep_cnt == repeat:
-		rep_cnt = 0
-		RUNMODS = []
-		reprunsPHI = []
-		reprunsHIST = []
-		BEST_RUNMODS = []
-		BESTreprunPHI = []
-		BESTreprunNL = []
-		BESTrerunsSIGH = []
-		savefname = 'saved_initial_'+str(nl_init)+'_lay'
-		SAVEF = SAVEMs + '/' + savefname
-		os.mkdir(SAVEF)
-		
-	# Bounds on mantle velocities:
-	vmin = 4.0
-	vmax = 7.5
-	delv = vmax - vmin
-	
-	# Bounds on hyper-parameters 
-	hypswmin = 0.0
-	hypswmax = 20.0
-	hypbwmin = 0.0
-	hypbwmax = 10.0
-	hypmin = np.array([hypswmin, hypbwmin])
-	hypmax = np.array([hypswmax, hypbwmax])
-	
-	# Vp/Vs ratio:
-	vpvs = math.sqrt(3.0)
+        if rep_cnt == repeat:
+                rep_cnt = 0
+                RUNMODS = []
+                reprunsPHI = []
+                reprunsHIST = []
+                BEST_RUNMODS = []
+                BESTreprunPHI = []
+                BESTreprunNL = []
+                BESTrerunsSIGH = []
+                savefname = 'saved_initial'
+                SAVEF = SAVEMs + '/' + savefname
+                os.mkdir(SAVEF)
 
-	# rho/Vs ratio:
-	rhovs = 0.75
 
-	CHMODS = []
-	BEST_CHMODS = []
+        CHMODS = []
+        BEST_CHMODS = []
 
-	# Set up totch chains:------------------------	
-	stz,stvel,stepi,stotime,sthyp = startmodel(hmin,nintf_init,totch,
-						   nv_init,maxz,vmin,vmax,
-						   cvmin,cvmax,cavgV,chmin,
-						   chmax,epimin,epimax,otmin,
-						   otmax,hypmin,hypmax,nevts)
-	
-	errorflag1='off'
-	#errorflag2='off'
-	
-	acc_rate = np.zeros(totch)
-	draw_acc_rate = np.zeros((len(DRAW),totch))
-	
-	"""      ------  Loop through multiple chains:  -------------     """
-	chain=0
-	while (chain < totch):
-		
-		# Create new MODEL instance
-		x = MODEL()
-		x.nmantle = nmantle_init
-		x.number = 0
-		x.radius = planet_radius #Earth model
-		x.PS_scale = vpvs
-		x.RS_scale = rhovs
-		x.nevts = nevts
-		x.hypDepth = np.zeros(nevts)
-		x.hypDepth[:] = source_depth
-		# Establish interface depths and velocity as random starting 
-		# model for the current chain:
-		# VS[rows,columns] rows = layers, columns = model iteration
-		# INTF[rows,columns rows = interface depth, columns = model 
-		# iteration
-		x,errorflag1=startchain(x,errorflag1,stz,stvel,stepi,stotime,
-					sthyp,vmin,vmax,cvmin,cvmax,cavgV,
-					chmin,chmax,epimin,epimax,otmin,otmax,
-					hypmin,hypmax,hmin,maxz,chain)		
-		
-		
-		# Create swm and nd input files
-		try:
-			x.create_swm_file(swm_nlay, create_nd_file=True)
-		except ValueError:
-			print ('WARNING: failed to create swm file on ' +
-			       'initial model')
-			print 'Restart chain'
-			errorflag1 = 'on'
-			continue
-			
+        # Set up totch chains:------------------------
+        stL, steta, stpratio, stwl = startmodel(totch, Lmin, Lmax, etamin,
+                                                etamax, prmin, prmax, wlmin,
+                                                wlmax)
 
-		# Run sw model
-		(modearray,nmodes)=runmodel(x,eps,npow,dt,fnyquist,nbran,cmin,
-					    cmax,maxlyr)
 
-		# Confirm that rayleigh run covers desired frequency band
-		# print modearray[2,:nmodes]
-		parray = 1./modearray[2,:nmodes]
-		gvarray = modearray[4,:nmodes]
-		pmin = parray.min()
-		pmax = parray.max()
-		if (pmin > cpmin or pmax < cpmax):
-			print pmin, cpmin, pmax, cpmax
-			print 'Initial model did not calculate correctly'
-			print 'Restart chain'
-			errorflag1 = 'on'
-			continue
-		
-		# Interpolate predicted gv to cp of data
-		fgv = interp1d(parray, gvarray)
-		gv_pre = []
-		tnum = np.zeros(nevts)
-		dpre_sw = []
+        acc_rate = np.zeros(totch)
+        draw_acc_rate = np.zeros((len(DRAW),totch))
 
-		for i in range(0,nevts):
-			gv_pre.append(fgv(cp[i]))
-			tnum[i] = len(dobs_sw[i])
-			dpre_sw.append(np.zeros(tnum[i]))
-			dpre_sw[i][:] =  (x.epiTime[i] + 
-					  (x.epiDistkm[i]/gv_pre[i]))	
+        """      ------  Loop through multiple chains:  -------------     """
+        print("Starting loop on chains")
+        for chain in range(totch):
 
-		# Run bw model
-		try:
-			dpre_bw = runmodel_bw(x, phases) 
-		except UserWarning:
-			print 'Body wave phases not found in initial model'
-			print 'Restart chain'
-			errorflag1 = 'on'
-			continue
-		except AttributeError as e:
-			print 'No taup model file was set'
-			raise e
-		# except:
-		#	print 'taup threw an error'
-		#	print 'Restart chain'
-		#	errorflag1 = 'on'
-		#	continue
+                # Create new tremor model with starting parameters
+                print("Initializing starting model")
+                x = tremor.TremorModel(depth=boss0*1.e3,
+                                       pratio=stpratio[chain], mu=boss1,
+                                       L=stL[chain],
+                                       width=stwl[chain]*stL[chain])
 
-		# Merge into single array
-		dpre = np.zeros((ndata,numm))
-		dpre[:,0] = np.concatenate([np.concatenate(dpre_sw), 
-				       np.concatenate(dpre_bw)])
-		x.dpre = dpre[:,0]
+                # Get basic parameters
+                eta = steta[chain]
+                x.set_eta(eta)
+                x.calc_derived()
+                x.calc_R()
+                x.calc_f()
+                # Only do a model if f is less than observed + 2 sigma
+                freq_limit = freq_obs + 2.*wsig_freq
+                if x.f[0] > freq_limit:
+                        print("Frequency too high, generating new startmodel")
+                        while x.f[0] > freq_limit:
+                                # Generate a new starting model and calc f
+                                L, eta, pratio, wl = startchain(Lmin, Lmax,
+                                                                etamin, etamax,
+                                                                prmin, prmax,
+                                                                wlmin, wlmax)
+                                x = tremor.TremorModel(depth=boss0*1.e3,
+                                                       pratio=pratio, mu=boss1,
+                                                       L=L, width=wl*L)
+                                x.set_eta(eta)
+                                x.calc_derived()
+                                x.calc_R()
+                                x.calc_f()
 
-		# CALCULATE MISFIT BETWEEN D_PRE AND D_OBS:
-		# CONTINUE BODY WAVE MOD FROM HERE
-		misfit = np.zeros(ndata)
-		newmis = np.zeros(ndata)
-		diagCE = np.zeros((ndata,numm))
-		PHI = np.zeros(numm)
+                # Calculate other data parameters
+                print("Running tremor model")
+                x.generate_tremor(max_duration, tremor_dt, tremor_w0)
+                duration = x.get_durations(taper=dur_taper,
+                                           threshold=dur_threshold)
+                dur_pre = duration[0]
+
+                # For now, use instaseis for amplitudes... may be slow
+                # Takes the RMS amplitude of vertical component over a window
+                # starting 50 seconds before the max amplitude and extending
+                # over the calculated source duration
+                m0_total, m0_average = x.get_moments(window=duration)
+                if ifInstaseis:
+                        print("Running Instaseis modeling")
+                        sliprate = x.u[0]
+                        slipdt = tremor_dt
+                        M0 = m0_total[0]
+                        source = instaseis.source.Source(latitude=slat,
+                                                         longitude=slon,
+                                                         depth_in_m=depth,
+                                                         m_rr=m_rr*M0,
+                                                         m_tt=m_tt*M0,
+                                                         m_pp=m_pp*M0,
+                                                         m_rt=m_rt*M0,
+                                                         m_rp=m_rp*M0,
+                                                         m_tp=m_tp*M0,
+                                                         origin_time=t0)
+                        source.set_sliprate(sliprate, slipdt)
+                        source.resample_sliprate(dt=dbdt, nsamp=len(x.u[0]))
+                        # Renormalize sliprate with absolute value appropriate
+                        # for oscillatory sliprates with negative values
+                        source.sliprate /= np.trapz(np.absolute(source.sliprate), dx=source.dt)
+                        receiver = instaseis.Receiver(latitude=rlat,
+                                                      longitude=rlon,
+                                                      network='XB',
+                                                      station='ELYSE')
+
+                        st = db.get_seismograms(source=source,
+                                                receiver=receiver,
+                                                kind='acceleration',
+                                                remove_source_shift=False,
+                                                reconvolve_stf=True)
+
+                        imax = np.where(st[0].data == st[0].data.max())[0][0]
+                        i1 = max(imax - int(50.0/dbdt), 0)
+                        i2 = min(imax + int(dur_pre/dbdt), len(st[0].data))
+                        vamp = np.sqrt(np.mean(st[0].data[i1:i2]**2))
+                else:
+                        raise NotImplementedError("Amplitude by scaling is " +
+                                                  "not yet implemented")
+                dpre = np.array([x.f[0], vamp, dur_pre])
+
+                # dpre = np.zeros((ndata,numm))
+                # dpre[:,0] = np.concatenate([np.concatenate(dpre_sw), 
+                # 		       np.concatenate(dpre_bw)])
+                # x.dpre = dpre[:,0]
+
+                # CALCULATE MISFIT BETWEEN D_PRE AND D_OBS:
+                # CONTINUE BODY WAVE MOD FROM HERE
+                misfit = np.zeros(ndata)
+                newmis = np.zeros(ndata)
+                diagCE = np.zeros((ndata,numm))
+                PHI = np.zeros(numm)
+                """
 		misfit,newmis,PHI,x,diagCE = finderror((-1),x,ndsub,dpre,dobs,
 						       misfit,newmis,wsig,PHI,
 						       diagCE,weight_opt)
@@ -1282,11 +1110,10 @@ while (run < numrun):
 
 		#### Create the pdf figures for disperions curves and models ####
 		# setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax)
-					
-	rep_cnt = rep_cnt + 1
-	run = run + 1
-
+"""					
+                rep_cnt = rep_cnt + 1
+"""
 Elog.close()
 
-
+"""
 
