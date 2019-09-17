@@ -79,163 +79,118 @@ def startmodel(totch, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
 #	sobs.close()
 #	return (modl)
 # ----------------------------------------------------------------------------
-"""
-def finderror (k,x,ndsub,dpre,dobs,misfit,newmis,wsig,PHI,diagCE,weight_opt):
-	curhyp = copy.deepcopy(x.sighyp)
-	# Find misfit
-        # count1 = 0
-        #for ievt in range(0,x.nevts):
-        #    count = 0
-        #    print 'Calculating misfit for event '+str(ievt)
-        #    while (count < tnum[ievt]):
-	#	misfit[ievt][count,k+1] = (dpre[ievt][count,k+1] - 
-        #                                   dobs[ievt][count])
-	#	sigEST = math.sqrt(((wsig[ievt][count]**2)+(curhyp**2)))
-	#	diagCE[count1,k+1] = sigEST**2
-	#	newmis[ievt][count,k+1] = misfit[ievt][count,k+1]*(1/sigEST)
-        #       formatstring = ('Period: {:7.2f} misfit: {:10g} newmis: ' +
-        #                        '{:10g} dobs: {:8.2f} dpre: {:8.2f}')
-        #        print formatstring.format(instpd[ievt][count], 
-        #                                  misfit[ievt][count,k+1], 
-        #                                  newmis[ievt][count,k+1], 
-        #                                  dobs[ievt][count], 
-        #                                  dpre[ievt][count,k+1])
-	#	count = count + 1
-        #        count1 = count1 + 1
-        nsubsets = len(ndsub)
-        if (not (nsubsets == len(curhyp))):
-            print 'Problem with hyp dimensions'
-            raise ValueError('inconsistent number of subsets')
-        count = 0
-        for i in range(0,nsubsets):
-            for j in range(0,ndsub[i]):
-                misfit[count] = dpre[count,k+1] - dobs[count]
-                sigEST = math.sqrt(((wsig[count]**2)+(curhyp[i]**2)))
-                diagCE[count] = sigEST**2
-                newmis[count] = misfit[count]*(1.0/sigEST)
-                count = count + 1
+def finderror (k,x,ndata,dpre,dobs,misfit,newmis,wsig,PHI,diagCE,weight_opt):
+    for i in range(ndata):
+        misfit[i] = dpre[i, k+1] - dobs[i]
+        sigEST = wsig[i]
+        # When adding in data variance hyper parameter
+        # sigEST = math.sqrt(((wsig[count]**2)+(curhyp[i]**2)))
+        diagCE[i] = sigEST**2
+        newmis[i] = misfit[i]*(1.0/sigEST)
 
-	print " "
-	print 'iteration: ' + str(k)
-        #x.misfit = []
-        #x.w_misfit = []
-        #for ievt in range(0,x.nevts):
-        #    x.misfit.append(misfit[ievt][:,k+1])
-        #    x.w_misfit.append(newmis[ievt][:,k+1])
+    x.misfit = misfit
+    x.w_misfit = newmis
+   
+    e_sqd = []
+    if weight_opt == 'OFF':
+        e_sqd = (x.misfit[:])**2
+    elif weight_opt == 'ON':
+        e_sqd = (x.w_misfit[:])**2
 
-        x.misfit = misfit
-        x.w_misfit = newmis
-
-        # Make e_sqd as list of arrays
-	#e_sqd = []
-	#if weight_opt == 'OFF':
-        #    for ievt in range(0,x.nevts):
-        #        e_sqd.append((x.misfit[ievt][:])**2)
-	#elif weight_opt == 'ON':
-        #    for ievt in range(0,x.nevts):
-        #        e_sqd.append((x.w_misfit[ievt][:])**2)
-        # Convert to single np array
-        #e_sqd = np.concatenate(e_sqd)
-        e_sqd = []
-        if weight_opt == 'OFF':
-            e_sqd = (x.misfit[:])**2
-        elif weight_opt == 'ON':
-            e_sqd = (x.w_misfit[:])**2
-
-	if (k == -1):
-		PHI[0] = (sum(e_sqd))
-		PHIold = 'nan'
-		PHInew = PHI[0]
-	else:
-		PHI[k+1] = (sum(e_sqd))
-		PHIold = PHI[k]
-		PHInew = PHI[k+1]
-	x.PHI = sum(e_sqd)
-        x.diagCE = diagCE[:]
-	print 'PHIold = ' + ' ' + str(PHIold) + '    ' + 'PHInew = ' + ' ' + str(PHInew)
-	return (misfit,newmis,PHI,x,diagCE)	
+    if (k == -1):
+        PHI[0] = (sum(e_sqd))
+        PHIold = 'nan'
+        PHInew = PHI[0]
+    else:
+        PHI[k+1] = (sum(e_sqd))
+        PHIold = PHI[k]
+        PHInew = PHI[k+1]
+    x.PHI = sum(e_sqd)
+    x.diagCE = diagCE[:]
+    print('PHIold = ' + ' ' + str(PHIold) + '    ' + 'PHInew = ' + ' '
+          + str(PHInew))
+    return (misfit,newmis,PHI,x,diagCE)	
 # ----------------------------------------------------------------------------
-def accept_reject (PHI,k,pDRAW,WARN_BOUNDS,delv,delv2,thetaV2,diagCE,vsIN,
-                   vsOUT,BDi):
-        pi = math.pi
-	if WARN_BOUNDS == 'ON':
-		pac = 0
-	else:
-		# If changing source parameters, moving interface, or changing 
-                # a velocity:
-		if (pDRAW >= 0) and (pDRAW <= 3):
-			try:
-				misck = math.exp(-(PHI[k+1]-PHI[k])/2)
-			except OverflowError:
-				misck = 1
-                        print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
-			print 'misck is:   '+str(misck)
-			pac = mintwo(1,misck)
+def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
+    pi = math.pi
+    if WARN_BOUNDS:
+        pac = 0
+    else:
+	# All current options 
+        if (pDRAW >= 0) and (pDRAW <= 3):
+            try:
+                misck = math.exp(-(PHI[k+1]-PHI[k])/2)
+            except OverflowError:
+                misck = 1
+            print('PHIs: '+str(PHI[k])+', '+str(PHI[k+1]))
+            print('misck is:   '+str(misck))
+            pac = mintwo(1,misck)
 			
-		# If changing dimension of model: Birth
-                elif pDRAW == 4:
-			try:
-                            term1 = ((thetaV2*math.sqrt(2*pi))/delv)
-                            term2 = (((vsOUT[BDi]-vsIN[BDi])**2)/
-                                     (2*(thetaV2**2)))
-                            term3 = ((PHI[k+1]-PHI[k])/2)
-                            print 'term 1: ' +str(term1)
-                            print 'term 2: ' +str(term2)
-                            print 'term 3: ' +str(term3)
-                            misck = term1*math.exp(term2-term3)
-                            # term1 = delv2/delv
-                            # term2 = (-(PHI[k+1]-PHI[k])/2.0)
-                            # misck = term1*math.exp(term2)
-			except OverflowError:
-                            misck = 1
-                        print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
-                        print 'delvs: '+str(delv)+', '+str(delv2)
-			print 'misck is:   '+str(misck)
-			pac = mintwo(1,misck)
+		# # If changing dimension of model: Birth
+                # elif pDRAW == 4:
+		# 	try:
+                #             term1 = ((thetaV2*math.sqrt(2*pi))/delv)
+                #             term2 = (((vsOUT[BDi]-vsIN[BDi])**2)/
+                #                      (2*(thetaV2**2)))
+                #             term3 = ((PHI[k+1]-PHI[k])/2)
+                #             print 'term 1: ' +str(term1)
+                #             print 'term 2: ' +str(term2)
+                #             print 'term 3: ' +str(term3)
+                #             misck = term1*math.exp(term2-term3)
+                #             # term1 = delv2/delv
+                #             # term2 = (-(PHI[k+1]-PHI[k])/2.0)
+                #             # misck = term1*math.exp(term2)
+		# 	except OverflowError:
+                #             misck = 1
+                #         print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
+                #         print 'delvs: '+str(delv)+', '+str(delv2)
+		# 	print 'misck is:   '+str(misck)
+		# 	pac = mintwo(1,misck)
 			
-		# If changing dimension of model: Death
-		elif pDRAW == 5:
-			try:
-                            term1 = (delv/(thetaV2*math.sqrt(2*pi)))
-                            term2 = (-((vsOUT[BDi]-vsIN[BDi])**2)/
-                                      (2*(thetaV2**2)))
-                            term3 = ((PHI[k+1]-PHI[k])/2)
-                            print 'term 1: ' +str(term1)
-                            print 'term 2: ' +str(term2)
-                            print 'term 3: ' +str(term3)
-                            misck = term1*math.exp(term2-term3)
-                            # term1 = delv/delv2
-                            # term2 = (-(PHI[k+1]-PHI[k])/2.0)
-                            # misck = term1*math.exp(term2)
-			except OverflowError:
-                            misck = 1
-                        print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
-                        print 'delvs: '+str(delv)+', '+str(delv2)
-			print 'misck is:   '+str(misck)
-			pac = mintwo(1,misck)
+		# # If changing dimension of model: Death
+		# elif pDRAW == 5:
+		# 	try:
+                #             term1 = (delv/(thetaV2*math.sqrt(2*pi)))
+                #             term2 = (-((vsOUT[BDi]-vsIN[BDi])**2)/
+                #                       (2*(thetaV2**2)))
+                #             term3 = ((PHI[k+1]-PHI[k])/2)
+                #             print 'term 1: ' +str(term1)
+                #             print 'term 2: ' +str(term2)
+                #             print 'term 3: ' +str(term3)
+                #             misck = term1*math.exp(term2-term3)
+                #             # term1 = delv/delv2
+                #             # term2 = (-(PHI[k+1]-PHI[k])/2.0)
+                #             # misck = term1*math.exp(term2)
+		# 	except OverflowError:
+                #             misck = 1
+                #         print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
+                #         print 'delvs: '+str(delv)+', '+str(delv2)
+		# 	print 'misck is:   '+str(misck)
+		# 	pac = mintwo(1,misck)
 		
-		# If changing hyperparameter for data error estimate:
-		elif pDRAW == 6:
-			try:
-				olddet = np.prod(diagCE[:,k])
-				newdet = np.prod(diagCE[:,k+1])
-				term1 = (olddet/newdet)
-				term2 = math.exp(-(PHI[k+1]-PHI[k])/2)
-				misck = term1*term2 
-			except OverflowError:
-				misck = 1
-                        print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
-			print 'misck is:   '+str(misck)
-			pac = mintwo(1,misck)
+		# # If changing hyperparameter for data error estimate:
+		# elif pDRAW == 6:
+		# 	try:
+		# 		olddet = np.prod(diagCE[:,k])
+		# 		newdet = np.prod(diagCE[:,k+1])
+		# 		term1 = (olddet/newdet)
+		# 		term2 = math.exp(-(PHI[k+1]-PHI[k])/2)
+		# 		misck = term1*term2 
+		# 	except OverflowError:
+		# 		misck = 1
+                #         print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
+		# 	print 'misck is:   '+str(misck)
+		# 	pac = mintwo(1,misck)
 			
-	print ' '		
-	print ('pac = min[ 1 , prior ratio x likelihood ratio x proposal ' +
-               'ratio ] :   ' + str(pac))
-	print ' '
-	q = random.uniform(0,1)
-	print 'random q:   '+str(q)
-	return (pac,q)
+    print(' ')		
+    print('pac = min[ 1 , prior ratio x likelihood ratio x proposal ' +
+          'ratio ] :   ' + str(pac))
+    print(' ')
+    q = random.uniform(0,1)
+    print('random q:   '+str(q))
+    return (pac,q)
 # ----------------------------------------------------------------------------
+"""
 # ----------------------------------------------------------------------------
 def runmodel (x,eps,npow,dt,fnyquist,nbran,cmin,cmax,maxlyr):
     modelfile = x.filename

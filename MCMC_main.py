@@ -8,11 +8,13 @@ import math
 from tqdm import tqdm
 import datetime
 import os
-from MCMC_functions import startmodel, startchain
+from MCMC_functions import startmodel, startchain, finderror, accept_reject
 import tremor
 from obspy.core import UTCDateTime
 import instaseis
 import string
+import copy
+from random import randint
 
 # from numpy import inf, log, cos, array
 # from glob import glob
@@ -111,7 +113,7 @@ ndata = len(dobs)
 # Uncertainty estimates - 1 sigma
 wsig_freq = 0.3
 wsig_amp = 3.e-10
-wsig_dur = 200.
+wsig_dur = 100.
 wsig = np.array([wsig_freq, wsig_amp, wsig_dur])
 
 # create boss matrix to control all combinations of starting number of layers 
@@ -147,17 +149,6 @@ MMM = np.arange(BURN-1,numm,M)
 weight_opt = 'ON'
 #weight_opt = 'OFF'
 # --------------------------------------------
-########## Options for weighting ############
-##########   sigd   or   sigd_n  ############
-#if weight_opt == 'ON':
-#	wsig = sigd
-#	weight_sig = "sigd"
-	#wsig = sigd_n
-	#weight_sig = "sigd_n"
-#else:
-#	wsig = np.zeros(fnum)
-
-# --------------------------------------------
 doptnum = len(depopt)
 numrun = doptnum*repeat
 
@@ -181,10 +172,13 @@ reprunsHIST = []
 
 # Given that many of these vary over orders of magnitude, maybe should use
 # log value as input, and thus it becomes log-normal perturbation.  Consider
+# this and whether it should effect acceptance criteria
 thetaL = 25.0 # Length perturbations
-thetaETA = 10.0 # Viscosity perturbations
-thetaP = 0.005 # Pressure ratio perturbatio
-thetaWL = 0.5 # Aspect ratio perturbation
+# thetaETA = 10.0 # Viscosity perturbations
+thetaETA = np.log(1.05) # Using a log normal perturbation instead
+thetaPR = 0.005 # Pressure ratio perturbatio
+# thetaWL = 0.5 # Aspect ratio perturbation
+thetaWL = np.log(1.05) # Using a log normal perturbation instead
 # ---------------------------------------------------------------------------------------
 
 savefname = "saved_initial_m"
@@ -233,7 +227,7 @@ for run in range(numrun):
 
         # Set parameter bounds
         Lmin = 1.0
-        Lmax = 1000.0
+        Lmax = 500.0
 
         etamin = 1.0
         etamax = 1000.0
@@ -355,7 +349,10 @@ for run in range(numrun):
                 else:
                         raise NotImplementedError("Amplitude by scaling is " +
                                                   "not yet implemented")
-                dpre = np.array([x.f[0], vamp, dur_pre])
+                dpre = np.zeros((ndata,numm))
+                dpre[:,0] = np.array([x.f[0], vamp, dur_pre])
+                x.number = 0
+                x.dpre = copy.deepcopy(dpre[:,0])
 
                 # dpre = np.zeros((ndata,numm))
                 # dpre[:,0] = np.concatenate([np.concatenate(dpre_sw), 
@@ -368,524 +365,268 @@ for run in range(numrun):
                 newmis = np.zeros(ndata)
                 diagCE = np.zeros((ndata,numm))
                 PHI = np.zeros(numm)
-                """
-		misfit,newmis,PHI,x,diagCE = finderror((-1),x,ndsub,dpre,dobs,
-						       misfit,newmis,wsig,PHI,
-						       diagCE,weight_opt)
+                
+                misfit,newmis,PHI,x,diagCE = finderror((-1),x,ndata,dpre,dobs,
+                                                       misfit,newmis,wsig,PHI,
+                                                       diagCE,weight_opt)
 								   	   
-		ITMODS = []
-		ITMODS.append(x)
+                ITMODS = []
+                x.reduce_size() # Remove some large arrays from x to save space
+                ITMODS.append(x)
 
-		numreject = 0.0
-		numaccept = 0.0
-		drawnumreject = np.zeros(len(DRAW))
-		drawnumaccept = np.zeros(len(DRAW))
+                numreject = 0.0
+                numaccept = 0.0
+                drawnumreject = np.zeros(len(DRAW))
+                drawnumaccept = np.zeros(len(DRAW))
 
-		keep_cnt = 0
-
+                keep_cnt = 0
+                
 		# =============================================================
-		k = 0
-		while (k < (numm-1)):
+                k = 0
+                while (k < (numm-1)):
 				
-			print "================================================"
-			print ("                   CHAIN # [" + str(chain)+
-			       "]    ITERATION # ["+str(k)+"]" )
-			print " "
-					
-			# Set previous model object as "oldx" so can call on 
-			# it's attributes when needed
-			oldx = copy.deepcopy(ITMODS[k])
-					
-			# Copy old model to new model and update number
-			# Perturbation steps then only need to change
-			# elements that are perturbed
-			x = copy.deepcopy(oldx)
-			x.number = k+1
-					
-			curNM = copy.deepcopy(oldx.nmantle)
-			WARN_BOUNDS = 'OFF'
-				
-			# save original velocities
-			vsIN = np.zeros(curNM+3)
-			vsIN[0] = copy.deepcopy(oldx.crustVs)
-			vsIN[1:] = copy.deepcopy(oldx.mantleVs)
+                        print("=============================================")
+                        print("                   CHAIN # [" + str(chain)+
+                              "]    ITERATION # ["+str(k)+"]" )
+                        print(" ")
 
-		        ########### Draw a new model ########################
-			# Choose random integer between 0 and 6 such that each 
-			# of the 7 options
-			# (Change epidist, Change otime, Change Velocity, Move,
-			# Birth, Death, Change Hyper-parameter) have
-			#  a 1/7 chance of being selected
-		
-			# pDRAW = randint(0,6)
-			# Change odds so that 50% change of changing epicentral
-			# parameters
-			epichange = randint(0,1)
-			if epichange == 0:
-				pDRAW = randint(0,1)
-			else:
-				pDRAW = randint(2,6)
-					
-			# Change epicentral distance
-			if pDRAW == 0:
-				
-				print DRAW[pDRAW]
+                        # Set previous model object as "oldx" so can call on 
+                        # it's attributes when needed
+                        oldx = copy.deepcopy(ITMODS[k])
 
-				wEPI = np.random.normal(0,thetaEPI)
-				ievt = randint(0,nevts-1)
+                        # Copy old model to new model and update number
+                        # Perturbation steps then only need to change
+                        # elements that are perturbed
+                        x = copy.deepcopy(oldx)
+                        x.number = k+1
 
-				newdist = x.epiDistkm[ievt] + wEPI
-				print ('Perturb epicentral distance of evt[' +
-				       str(ievt) + '] by ' + 
-				       str(wEPI) + ' km')
+                        WARN_BOUNDS = False
 
-				if ((newdist < epimin[ievt]) or 
-				    (newdist > epimax[ievt])):
-					print ("!!! Outside epicentral " +
-					       "distance range")
-					print "Automatically REJECT model"
-					WARN_BOUNDS = 'ON'
-				else:
-					x.epiDistkm[ievt] = newdist
-				vsOUT = copy.deepcopy(vsIN)
-				BDi = 0
-				delv2 = 0
+                        ########### Draw a new model ########################
+                        # Choose random integer between 0 and 3 such that each 
+                        # of the 4 options
+                        # (Change L, Change Viscosity, Change Pressure Ratio,
+                        # Change Aspect Ratio) have
+                        #  a 1/4 chance of being selected
 
-			# Change origin time
-			if pDRAW == 1:
-				
-				print DRAW[pDRAW]
+                        pDRAW = randint(0,3)
 
-				wOT = np.random.normal(0,thetaOT)
-				ievt = randint(0,nevts-1)
-				
-				print ('Perturb origin time of evt[' + 
-				       str(ievt) + '] by ' + str(wOT)
-				       + 's')
+                        # Change channel length
+                        if pDRAW == 0:
 
-				newtime = x.epiTime[ievt] + wOT
+                                print(DRAW[pDRAW])
 
-				if ((newtime < otmin[ievt]) or 
-				    (newtime > otmax[ievt])):
-					print ("!!! Outside origin time " +
-					       "range\n")
-					print "Automatically REJECT model"
-					WARN_BOUNDS = 'ON'
-				else:
-					x.epiTime[ievt] = newtime
-				vsOUT = copy.deepcopy(vsIN)
-				BDi = 0
-				delv2 = 0
+                                wL = np.random.normal(0,thetaL)
+                                newL = x.L + wL
+                                print('Perturb channel length by ' + 
+                                      str(wL) + ' km')
 
-			# Change velocity of a layer (vi)
-			if pDRAW == 2:
-						
-				print DRAW[pDRAW]
-						
-				# Randomly select a perturbable velocity
-				pV = randint(0,curNM+2)
-						
-				# Generate random perturbation value
-				wV1 = np.random.normal(0,thetaV1)
-						
-						
-		
-				# initialize all velocities as the same as 
-				# previously
-				vsOUT = copy.deepcopy(vsIN)
+                                if ((newL < Lmin) or 
+                                    (newL > Lmax)):
+                                        print("!!! Outside channel " +
+                                              "length range")
+                                        print("Automatically REJECT model")
+                                        WARN_BOUNDS = True
+                                else:
+                                        x = tremor.TremorModel(depth=boss0*1.e3,
+                                                               pratio=oldx.pratio,
+                                                               mu=boss1,
+                                                               L=newL,
+                                                               width=oldx.wl*newL)
+                                        x.set_eta(oldx.eta)
+                                # vsOUT = copy.deepcopy(vsIN)
+                                # BDi = 0
+                                # delv2 = 0
 
-				# target layer being perturbed and add in 
-				# random wV
-				vsOUT[pV] = vsOUT[pV] + wV1
+                        # Change viscosity
+                        if pDRAW == 1:
+
+                                print(DRAW[pDRAW])
+
+                                wETA = np.random.normal(0,thetaETA)
+
+                                newETA = np.exp(np.log(x.eta[0]) + wETA)
+                                ETAdiff = newETA - x.eta[0]
+
+                                print('Perturb viscosity by ' + str(ETAdiff)
+                                      + ' Pa s')
+
+                                # newETA = x.eta[0] + wETA
+
+                                if ((newETA < etamin) or 
+                                    (newETA > etamax)):
+                                        print ("!!! Outside viscosity " +
+                                               "range\n")
+                                        print("Automatically REJECT model")
+                                        WARN_BOUNDS = True
+                                else:
+                                        x.set_eta(newETA)
+                                # vsOUT = copy.deepcopy(vsIN)
+                                # BDi = 0
+                                # delv2 = 0
+
+                        # Change pressure ratio
+                        if pDRAW == 2:
+
+                                print(DRAW[pDRAW])
+
+                                wPR = np.random.normal(0, thetaPR)
+
+                                print('Perturb pressure ratio by ' +
+                                      str(wPR) + ' Pa')
+
+                                newPR = x.pratio + wPR
+
+                                if (newPR < prmin) or (newPR > prmax):
+                                        print("!!! Outside pressure " +
+                                              "ratio range\n")
+                                        print("Automatically REJECT model")
+                                        WARN_BOUNDS = True
+                                else:
+                                        x = tremor.TremorModel(depth=boss0*1.e3,
+                                                               pratio=newPR,
+                                                               mu=boss1,
+                                                               L=oldx.L,
+                                                               width=oldx.wl*oldx.L)
+                                        x.set_eta(oldx.eta)
+
+
+                        # Change aspect ratio	
+                        elif pDRAW == 3:
+
+                                print(DRAW[pDRAW])
+
+                                wWL = np.random.normal(0, thetaWL)
+
+                                newWL = np.exp(np.log(x.wl) + wWL)
+                                WLdiff = newWL - x.wl
+
+                                print('Perturb aspect ratio by ' + str(WLdiff))
+
+                                # newWL = x.wl + wWL
+
+                                if (newWL < wlmin) or (newWL > wlmax):
+                                        print("!!! Outside aspect " +
+                                              "ratio range\n")
+                                        print("Automatically REJECT model")
+                                        WARN_BOUNDS = True
+                                else:
+                                        x = tremor.TremorModel(depth=boss0*1.e3,
+                                                               pratio=oldx.pratio,
+                                                               mu=boss1,
+                                                               L=oldx.L,
+                                                               width=newWL*oldx.L)
+                                        x.set_eta(oldx.eta)
+                        # Calculate frequency
+                        x.calc_derived()
+                        x.calc_R()
+                        x.calc_f()
+
+                        if x.f[0] > freq_limit:
+                                print("Frequency too high")
+                                print("Automatically REJECT model")
+                                WARN_BOUNDS = True
+
+
+                        # Continue as long as proposed model is not out of 
+                        # bounds:
+                        if WARN_BOUNDS:
+                                print(' == ! == ! == !  REJECT NEW MODEL  ' +
+                                      '! == ! == ! ==  ')
+                                del x
+                                numreject = numreject + 1
+                                drawnumreject[pDRAW] = drawnumreject[pDRAW] + 1
+                                continue
+                                # re-do iteration -- DO NOT increment (k)
+
+                        # Calculate predicted data
+                        print("Running tremor model")
+                        x.generate_tremor(max_duration, tremor_dt, tremor_w0)
+                        duration = x.get_durations(taper=dur_taper,
+                                                   threshold=dur_threshold)
+                        dur_pre = duration[0]
+
+                        # For now, use instaseis for amplitudes... may be slow
+                        # Takes the RMS amplitude of vertical component over a window
+                        # starting 50 seconds before the max amplitude and extending
+                        # over the calculated source duration
+                        m0_total, m0_average = x.get_moments(window=duration)
+                        if ifInstaseis:
+                                print("Running Instaseis modeling")
+                                sliprate = x.u[0]
+                                slipdt = tremor_dt
+                                M0 = m0_total[0]
+                                source = instaseis.source.Source(latitude=slat,
+                                                                 longitude=slon,
+                                                                 depth_in_m=depth,
+                                                                 m_rr=m_rr*M0,
+                                                                 m_tt=m_tt*M0,
+                                                                 m_pp=m_pp*M0,
+                                                                 m_rt=m_rt*M0,
+                                                                 m_rp=m_rp*M0,
+                                                                 m_tp=m_tp*M0,
+                                                                 origin_time=t0)
+                                source.set_sliprate(sliprate, slipdt)
+                                source.resample_sliprate(dt=dbdt,
+                                                         nsamp=len(x.u[0]))
+                                # Renormalize sliprate with absolute value
+                                # appropriate
+                                # for oscillatory sliprates with negative values
+                                source.sliprate /= np.trapz(np.absolute(source.sliprate),
+                                                            dx=source.dt)
+                                receiver = instaseis.Receiver(latitude=rlat,
+                                                              longitude=rlon,
+                                                              network='XB',
+                                                              station='ELYSE')
+
+                                st = db.get_seismograms(source=source,
+                                                        receiver=receiver,
+                                                        kind='acceleration',
+                                                        remove_source_shift=False,
+                                                        reconvolve_stf=True)
+
+                                imax = np.where(st[0].data == st[0].data.max())[0][0]
+                                i1 = max(imax - int(50.0/dbdt), 0)
+                                i2 = min(imax + int(dur_pre/dbdt),
+                                         len(st[0].data))
+                                vamp = np.sqrt(np.mean(st[0].data[i1:i2]**2))
+                        else:
+                                raise NotImplementedError("Amplitude by scaling is " +
+                                                          "not yet implemented")
+                        dpre[:, k+1] = np.array([x.f[0], vamp, dur_pre])
+                        x.dpre = copy.deepcopy(dpre[:,k+1])
+
+                        # Calculate error of the new model:
+                        print("Freq {:.4f}, Amplitude {:.3E}, Duration {:.1f}".format(x.f[0], vamp, dur_pre))
+                        print("L {:.1f} eta {:.1f} pratio {:.6f} aspect {:.1f}".format(x.L, x.eta[0], x.pratio, x.wl))
+                        misfit,newmis,PHI,x,diagCE = finderror(k,x,ndata,dpre,
+                                                               dobs,misfit,
+                                                               newmis,wsig,PHI,
+                                                               diagCE,
+                                                               weight_opt)
+
+                        pac,q = accept_reject(PHI,k,pDRAW,WARN_BOUNDS)
 	
-				if pV == 0:
-					print ('Perturb crust VS[' + str(pV) +
-					       ']\n')
-					print 'wV1 = ' + str(wV1)
-							
-					# if the new value is outside of 
-					# velocity range or creates a negative
-					# velocity gradient - REJECT
-					if ((vsOUT[pV] < cvmin) or 
-					    (vsOUT[pV] > cvmax) or
-					    (vsOUT[pV] > vsOUT[pV+1])):
-						print ('!!! Outside velocity ' +
-						       'range allowed!!')
-						print ('Automatically REJECT ' +
-						       'model')
-						WARN_BOUNDS = 'ON'
-				elif pV == curNM+2:
-					print ('Perturb base VS[' + str(pV) +
-					       ']\n')
-					print 'wV1 = ' + str(wV1) + '\n'
+                        if pac < q:
+                                print (' == ! == ! == !  REJECT NEW MODEL  ' +
+                                       '! == ! == ! ==  ')
+                                del x
+                                PHI[k+1] = PHI[k]
 
-					# if the new value is outside of 
-					# velocity range or creates a negative
-					# velocity gradient - REJECT
-					if ((vsOUT[pV] < vsOUT[pV-1]) or 
-					    (vsOUT[pV] > vmax)):
-						print ('!!! Outside velocity ' +
-						       'range allowed!!')
-						print ('Automatically REJECT ' +
-						       'model')
-						WARN_BOUNDS = 'ON'
-				else:
-					print 'Perturb VS[' + str(pV) +']'
-					print 'wV1 = ' + str(wV1) 
-		
-					# if the new value is outside of 
-					# velocity range or creates a negative
-					# velocity gradient - REJECT
-					if ((vsOUT[pV] < vsOUT[pV-1]) or 
-					    (vsOUT[pV] > vsOUT[pV+1]) or
-					    (vsOUT[pV] < vmin) or 
-					    (vsOUT[pV] > vmax)):
-						print ('!!! Outside velocity ' +
-						       'range allowed!!')
-						print ('Automatically REJECT ' +
-						       'model')
-						WARN_BOUNDS = 'ON'
-		
-				BDi = 0
-				delv2 = 0
-				x.crustVs = vsOUT[0]
-				x.mantleVs = []
-				x.mantleVs = vsOUT[1:]
-									
-			# Change an interface depth	
-			elif pDRAW == 3:
-						
-				# MOVE an interface!!!
-				nintf = curNM+1
-				print DRAW[pDRAW]
-						
-				# initialize all velocities and interfaces the 
-				# same as previously
-				vsOUT = copy.deepcopy(vsIN)
-				intfIN = np.zeros(curNM+1)
-				intfIN = oldx.radius - oldx.mantleR
-				intfOUT = copy.deepcopy(intfIN)
-						
-				# Choose an interface at random to perturb
-				pI = randint(0,(nintf-1))
-				print 'Perturbing INTF['+str(pI)+']'
-						
-				# Generate random perturbation value
-				wI = np.random.normal(0,thetaI)
-				print 'wI = ' + str(wI)
-									
-				# select the interface being perturbed and add 
-				# in random wI and then resort
-				intfOUT[pI] = intfIN[pI] + wI
-				# sorting avoids interfaces overtaking each 
-				# other
-				tmpint = np.array(sorted(intfOUT))
-				intfOUT = tmpint
+                                numreject = numreject + 1
+                                drawnumreject[pDRAW] = drawnumreject[pDRAW] + 1
+                                # re-do iteration -- DO NOT increment (k)
+                        else: 
+                                print('******   ******  ACCEPT NEW MODEL  ' +
+                                      '******   ******')
 
-				# Check if crustal thickness has changed
-				if not (intfOUT[0] == oldx.crustThick):
-					x.crustThick = intfOUT[0]
-					if ((x.crustThick < chmin) or 
-					    (x.crustThick > chmax)):
-						print ('!!! Crustal thickness '
-						       + 'outside of depth ' + 
-						       'bounds')
-						print ('Automatically REJECT ' +
-						       'model')
-						WARN_BOUNDS = 'ON'
+                                # Retain MODEL
+                                x.reduce_size()
+                                ITMODS.append(x)
 
-				# if the new value is outside of depth bounds 
-				# - REJECT
-				if ((intfOUT[pI] < x.crustThick) or 
-				    (intfOUT[pI] > maxz)):
-					print ('!!! Outside of depths ' +
-					       'allowed!!!')
-					print 'Automatically REJECT model'
-					WARN_BOUNDS = 'ON'
-	
-
-				# if any layers are now thinner than hmin - 
-				# REJECT
-				for i in range(1,curNM+1):
-					if ((intfOUT[i] - intfOUT[i-1]) < hmin):
-						print '!!! Layer too thin!!!\n'
-						print ('Automatialy REJECT ' +
-						       'model')
-						WARN_BOUNDS = 'ON'
-				if (x.radius - x.cmbR - intfOUT[curNM]) < hmin:
-					print '!!! Layer too thin!!!'
-					print 'Automatically REJECT model'
-					WARN_BOUNDS = 'ON'
-
-				x.crustThick = intfOUT[0]
-				x.mantleR = x.radius - intfOUT
-				BDi = 0
-				delv2 = 0
-
-			# Create a new layer
-			elif pDRAW == 4:
-						
-				# ADD a layer in!!!
-				print DRAW[pDRAW]
-						
-				# initialize all velocities as the same as 
-				# previously
-				vsOUT = copy.deepcopy(vsIN)
-				   						
-				newNM = curNM + 1
-				x.nmantle = newNM
-						
-				if newNM > nmax:
-					print ('!!! exceeded the maximum ' +
-					       'number of layers allowed!!!\n')
-					print 'Automatically REJECT model'
-					WARN_BOUNDS = 'ON'
-						
-				# Get the current model's interface depths
-				intfIN = np.zeros(curNM+2)
-				intfIN = oldx.radius - oldx.mantleR
-				#F = np.zeros(curNL-1)
-				#F[:] = copy.deepcopy(oldx.intf[:])
-						
-				# Generate an interface at a random depth, but 
-				# have check measures in place so that the 
-				# interface cannot be within hmin of any of 
-				# the existing interfaces
-				(addI,intfOUT,vsOUT,WARN_BOUNDS,
-				 BDi,delv2) = randINTF(vmin,vmax,chmin,hmin,
-						       maxz,intfIN,vsIN,thetaV2)
-			        
-				x.mantleR = x.radius - np.array(intfOUT)    
-				x.crustThick = intfOUT[0]
-				x.crustVs = vsOUT[0]
-				x.mantleVs = []
-				x.mantleVs = vsOUT[1:]
-				
-			# Delete a layer
-			elif pDRAW == 5:
-						
-				# REMOVE a layer!!!
-				print DRAW[pDRAW]
-						
-				newNM = curNM - 1
-				x.nmantle = newNM
-						
-				if newNM < nmin:
-					print ('!!! dropped below the ' + 
-					       'minimum number of layers ' +
-					       'allowed!!!')
-					print 'Automatically REJECT model'
-					WARN_BOUNDS = 'ON'
-
-				# Get the current model's interface depths
-				intfIN = np.zeros(curNM+2)
-				intfIN = oldx.radius - oldx.mantleR
-						
-				# Randomly select an interface to remove
-				# except crust or cmb
-				kill_I = randint(1,(curNM))
-				BDi = kill_I
-				intfOUT = np.delete(intfIN, kill_I)
-				print "removing interface["+str(kill_I)+"]"
-				delv2 = vsIN[kill_I+1]-vsIN[kill_I-1]
-						
-				# Transfer over velocity values.  We remove the
-				# velocity associated with the removed 
-				# interface, meaning the new velocity profile
-				# simply linearly interpolates over the region
-				# of the removed interface
-				VSlen = len(vsIN)
-				vsOUT = np.zeros(VSlen-1)
-				vsOUT[0:kill_I] = vsIN[0:kill_I]
-				vsOUT[kill_I:(VSlen-1)] = vsIN[kill_I+1:(VSlen)]
-						
-				x.mantleR = []
-				x.mantleR = x.radius - np.array(intfOUT)    
-				x.crustThick = intfOUT[0]
-				x.crustVs = vsOUT[0]
-				x.mantleVs = []
-				x.mantleVs = vsOUT[1:]
-						
-			# Change Hyper-parameter
-			elif pDRAW == 6:	
-						
-				# Change the estimate of data error
-				print DRAW[pDRAW]
-						
-				# Determine which hyperparameter to change
-				ihyp = randint(0,len(oldx.sighyp)-1)
-
-				# Generate random perturbation value
-				wHYP = np.random.normal(0,thetaHYP)
-						
-				# Change the hyper-parameter value
-				curhyp = copy.deepcopy(oldx.sighyp)
-				newHYP = copy.deepcopy(curhyp)
-				newHYP[ihyp] = curhyp[ihyp] + wHYP
-				print ('Changing hyperparameter ' + str(ihyp) +
-				       ' from ' + str(curhyp[ihyp]) + ' to ' +
-				       str(newHYP[ihyp]))
-				x.sighyp = newHYP
-						
-				# if new hyperparameter is outside of range - 
-				# REJECT
-				if ((newHYP[ihyp] < hypmin[ihyp]) or 
-				    (newHYP[ihyp] > hypmax[ihyp])):
-					print '!!! Outside the range allowed!!!'
-					print 'Automatically REJECT model'
-					WARN_BOUNDS = 'ON'
-						
-				vsOUT = copy.deepcopy(vsIN)
-				BDi = 0
-				delv2 = 0
-
-			x.crustVp = x.PS_scale * x.crustVs
-			x.crustRho = x.RS_scale * x.crustVs
-			x.mantleVp = x.PS_scale * x.mantleVs
-			x.mantleRho = x.RS_scale * x.mantleVs
-				
-			newflag =  any(value<0 for value in x.mantleVs)
-			if newflag == True:
-				WARN_BOUNDS == 'ON'
-						
-			# Continue as long as proposed model is not out of 
-			# bounds:
-			if WARN_BOUNDS == 'ON':
-				print (' == ! == ! == !  REJECT NEW MODEL  ' +
-				       '! == ! == ! ==  ')
-				del x
-				numreject = numreject + 1
-				drawnumreject[pDRAW] = drawnumreject[pDRAW] + 1
-				continue
-			        # re-do iteration -- DO NOT increment (k)
-
-			print 'test3'
-			print x.epiDistkm
-			print x.epiTime
-			print x.nmantle
-			print x.mantleR
-			print x.crustVs, x.mantleVs
-                        # Create swm input file
-			try:
-				x.create_swm_file(swm_nlay, 
-						  create_nd_file=True)
-			except ValueError:
-				print 'WARNING: Unable to create model files'
-				print (' == ! == ! == !  REJECT NEW MODEL  ' +
-				       '! == ! == ! ==  ')
-				del x
-				continue
-
-                        # Run sw model
-			(modearray,nmodes)=runmodel(x,eps,npow,dt,fnyquist,
-						    nbran,cmin,cmax,maxlyr)
-
-		        # Confirm that rayleigh run covers desired frequency 
-			# band
-			parray = 1./modearray[2,:nmodes]
-			gvarray = modearray[4,:nmodes]
-			pmin = parray.min()
-			pmax = parray.max()
-			if (pmin > cpmin or pmax < cpmax):
-				print pmin, cpmin, pmax, cpmax
-				print ('Model did not calculate ' +
-				       'correctly')
-				print 'Redo iteration'
-				del x
-				continue
-		
-		        # Interpolate predicted gv to cp of data
-			fgv = interp1d(parray, gvarray)
-			gv_pre = []
-
-			for i in range(0,nevts):
-				gv_pre.append(fgv(cp[i]))
-				dpre_sw[i][:] =  (x.epiTime[i] + 
-						  (x.epiDistkm[i]/gv_pre[i]))	
-
-			# Run bw model
-			try:
-				dpre_bw = runmodel_bw(x, phases) 
-			except UserWarning:
-				print ('Body wave phases not calculated ' +
-				       'correctly')
-				print 'Redo iteration'
-				del x
-				continue
-			except:
-				print 'taup threw an exception'
-				print 'Redo iteration'
-				del x
-				continue
-
-			# Merge into single array
-			dpre[:,k+1] = np.concatenate([np.concatenate(dpre_sw), 
-					       np.concatenate(dpre_bw)])
-			if (not (len(dpre) == ndata)):
-				print 'Problem with dpre'
-				raise ValueError('Inconsistent ndata')
-			x.dpre = copy.deepcopy(dpre[:,k+1])
-
-			# Calculate error of the new model:
-			misfit,newmis,PHI,x,diagCE = finderror(k,x,ndsub,dpre,
-							       dobs,misfit,
-							       newmis,wsig,PHI,
-							       diagCE,
-							       weight_opt)
-							
-			pac,q = accept_reject(PHI,k,pDRAW,WARN_BOUNDS,delv,
-					      delv2,thetaV2,diagCE,vsIN,vsOUT,
-					      BDi)
-	
-			if pac < q:
-				print (' == ! == ! == !  REJECT NEW MODEL  ' +
-				       '! == ! == ! ==  ')
-				del x
-				PHI[k+1] = PHI[k]
-									
-				numreject = numreject + 1
-				drawnumreject[pDRAW] = drawnumreject[pDRAW] + 1
-				# re-do iteration -- DO NOT increment (k)
-			else: 
-				print ('******   ******  ACCEPT NEW MODEL  ' +
-				       '******   ******')
-									
-				# Calculate the depths and velocities for model 
-				# (for plotting purposes to be used later)
-				#npts = ((x.nl)*2)-1
-				#F = copy.deepcopy(x.intf)
-				#VS = copy.deepcopy(x.vs)
-				#depth = np.zeros(npts+1)
-				#depth[npts]=maxz
-				#vels = np.zeros(npts+1)
-				#adj = 0.001
-				#ii=1
-				#jj=0
-				#ll=0
-									
-				#ii=1
-				#jj=0
-				#while (ii < npts):
-				#	depth[ii]=F[jj]-adj
-				#	depth[ii+1]=F[jj]+adj
-				#	jj = jj + 1
-				#	ii = ii + 2
-				#ii=0
-			       	#jj=0
-				#while (ii < npts):
-				#	vels[ii]=VS[jj]
-				#	vels[ii+1]=VS[jj]
-				#	jj = jj + 1
-				#	ii = ii + 2
-				#x.depths = depth
-				#x.vels = vels
-								
-				# Retain MODEL 
-				ITMODS.append(x)
-					
-				numaccept = numaccept + 1
-				drawnumaccept[pDRAW] = drawnumaccept[pDRAW] + 1
-
+                                numaccept = numaccept + 1
+                                drawnumaccept[pDRAW] = drawnumaccept[pDRAW] + 1
+                                """
 				if k == MMM[keep_cnt]:
 					print ('Adding model #' + str(k + 1) +
 					       ' to the CHAIN ensemble')
@@ -917,7 +658,9 @@ for run in range(numrun):
 					os.remove(filename) 
 				
 			        # move to next iteration
-				k = k + 1
+                                """
+                                k = k + 1
+                                """
 	
 		# Calculate the acceptance rate for the chain:
 		numgen = numreject + numaccept

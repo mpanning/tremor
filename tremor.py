@@ -158,6 +158,7 @@ class TremorModel(object):
             else:
                 self.k = k_default
                 self.calc_width()
+        self.wl = self.width/self.L
         # If these are None, will be set in calc_derived
         self.h0 = h0 
         self.M = M
