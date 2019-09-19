@@ -231,7 +231,7 @@ class TremorModel(object):
 
     # The following functions need documentation and error catching
     def _calc_vs(self):
-        self.vs = self.hs*self.hs/(12.*self.eta)
+        self.vs = self.dp*self.hs*self.hs/(12.*self.eta)/self.L
 
     def _calc_a(self):
         self.a = self.eta*self.L*self.L*self.L/(self.hs*self.hs*self.hs)

@@ -33,8 +33,8 @@ dbnpts = db.info['npts']
 # Tremor parameters Should define a way to set this from a file or command line
 # depth_in_km = 6.0
 # depth = 1.e3*depth_in_km
-# depths = [2000., 6000., 60000.]
-depths = [2000.]
+depths = [2000., 6000., 60000.]
+# depths = [2000.]
 # pratio = 1.01
 pratios = [1.001, 1.01, 1.10]
 # pratios = [1.001, 1.01]

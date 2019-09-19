@@ -5,6 +5,8 @@ import numpy as np
 import math
 import tremor
 import random
+import matplotlib.pyplot as plt
+import pylab as P
 # from numpy import inf, log, cos, array
 # from glob import glob
 # import numpy as np
@@ -107,6 +109,9 @@ def finderror (k,x,ndata,dpre,dobs,misfit,newmis,wsig,PHI,diagCE,weight_opt):
         PHInew = PHI[k+1]
     x.PHI = sum(e_sqd)
     x.diagCE = diagCE[:]
+    # print(misfit)
+    # print(newmis)
+    print(e_sqd)
     print('PHIold = ' + ' ' + str(PHIold) + '    ' + 'PHInew = ' + ' '
           + str(PHInew))
     return (misfit,newmis,PHI,x,diagCE)	
@@ -126,62 +131,6 @@ def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
             print('misck is:   '+str(misck))
             pac = mintwo(1,misck)
 			
-		# # If changing dimension of model: Birth
-                # elif pDRAW == 4:
-		# 	try:
-                #             term1 = ((thetaV2*math.sqrt(2*pi))/delv)
-                #             term2 = (((vsOUT[BDi]-vsIN[BDi])**2)/
-                #                      (2*(thetaV2**2)))
-                #             term3 = ((PHI[k+1]-PHI[k])/2)
-                #             print 'term 1: ' +str(term1)
-                #             print 'term 2: ' +str(term2)
-                #             print 'term 3: ' +str(term3)
-                #             misck = term1*math.exp(term2-term3)
-                #             # term1 = delv2/delv
-                #             # term2 = (-(PHI[k+1]-PHI[k])/2.0)
-                #             # misck = term1*math.exp(term2)
-		# 	except OverflowError:
-                #             misck = 1
-                #         print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
-                #         print 'delvs: '+str(delv)+', '+str(delv2)
-		# 	print 'misck is:   '+str(misck)
-		# 	pac = mintwo(1,misck)
-			
-		# # If changing dimension of model: Death
-		# elif pDRAW == 5:
-		# 	try:
-                #             term1 = (delv/(thetaV2*math.sqrt(2*pi)))
-                #             term2 = (-((vsOUT[BDi]-vsIN[BDi])**2)/
-                #                       (2*(thetaV2**2)))
-                #             term3 = ((PHI[k+1]-PHI[k])/2)
-                #             print 'term 1: ' +str(term1)
-                #             print 'term 2: ' +str(term2)
-                #             print 'term 3: ' +str(term3)
-                #             misck = term1*math.exp(term2-term3)
-                #             # term1 = delv/delv2
-                #             # term2 = (-(PHI[k+1]-PHI[k])/2.0)
-                #             # misck = term1*math.exp(term2)
-		# 	except OverflowError:
-                #             misck = 1
-                #         print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
-                #         print 'delvs: '+str(delv)+', '+str(delv2)
-		# 	print 'misck is:   '+str(misck)
-		# 	pac = mintwo(1,misck)
-		
-		# # If changing hyperparameter for data error estimate:
-		# elif pDRAW == 6:
-		# 	try:
-		# 		olddet = np.prod(diagCE[:,k])
-		# 		newdet = np.prod(diagCE[:,k+1])
-		# 		term1 = (olddet/newdet)
-		# 		term2 = math.exp(-(PHI[k+1]-PHI[k])/2)
-		# 		misck = term1*term2 
-		# 	except OverflowError:
-		# 		misck = 1
-                #         print 'PHIs: '+str(PHI[k])+', '+str(PHI[k+1])
-		# 	print 'misck is:   '+str(misck)
-		# 	pac = mintwo(1,misck)
-			
     print(' ')		
     print('pac = min[ 1 , prior ratio x likelihood ratio x proposal ' +
           'ratio ] :   ' + str(pac))
@@ -190,57 +139,6 @@ def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
     print('random q:   '+str(q))
     return (pac,q)
 # ----------------------------------------------------------------------------
-"""
-# ----------------------------------------------------------------------------
-def runmodel (x,eps,npow,dt,fnyquist,nbran,cmin,cmax,maxlyr):
-    modelfile = x.filename
-    (modearray, nmodes) = rayleigh_python.rayleigh(eps,npow,dt,fnyquist,nbran,
-                                                   cmin,cmax,maxlyr,modelfile)
-    return (modearray,nmodes)
-# ----------------------------------------------------------------------------
-def runmodel_bw (x,phases):
-    try:
-        modelfile = x.ndfilename
-    except AttributeError:
-        try:
-            modelfile = x.tvelfilename
-        except AttributeError:
-            raise AttributeError("No nd or tvel file name set")
-
-    #modelfile = x.filename + '.tvel'
-    try:
-        taup_create.build_taup_model(modelfile,os.getcwd())
-    except:
-        print 'taup could not build model'
-        raise UserWarning("taup build model error")
-    taupfile = "{}/{}.npz".format(os.getcwd(), x.filename)
-    model = TauPyModel(model=taupfile)
-
-    if (not(len(phases) == x.nevts)):
-        raise ValueError('Inconsistent nevts')
-    dpre_bw = []
-    for i in range(0,x.nevts):
-        print "Event {:d}\n".format(i)
-        dpre_bw.append(np.zeros(len(phases[i])))
-        distdeg = x.epiDistkm[i] * 180.0/(x.radius*math.pi)
-        arrivals = np.array(model.get_travel_times(source_depth_in_km=x.hypDepth[i], 
-                                                   distance_in_degree=distdeg,
-                                                   phase_list=phases[i]))
-        # Extract arrival times 
-        names = np.array([arrivals[j].name for j in range(len(arrivals))])
-        print names
-        # Need to catch errors if phase is not found FIX THIS
-        for j in range(0,len(phases[i])):
-            print i,j,phases[i][j]
-            try:
-                dpre_bw[i][j] = (arrivals[names == phases[i][j]][0].time + 
-                                 x.epiTime[i])
-            except IndexError:
-                print 'Phases not found'
-                raise UserWarning("Phases not found")
-
-    return (dpre_bw)
-"""
 # ----------------------------------------------------------------------------
 def startchain(Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
     L = random.uniform(Lmin, Lmax)
@@ -248,210 +146,59 @@ def startchain(Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
     pratio = random.uniform(prmin, prmax)
     wl = random.uniform(wlmin, wlmax)
     return L, eta, pratio, wl
+# ----------------------------------------------------------------------------	
 # ----------------------------------------------------------------------------
-"""
-def randINTF (prior_vrad,prior_vmin,prior_vmax,prior_delv,chmin,hmin,maxz,F,
-              vsIN,thetaV2,max_neg_grad,planet_radius):
-	nintf = len(F)
-	# Have a flag so if proper conditions are not met the process will 
-        # repeat
+def errorfig(PHI, BURN, chain, abc, run, SAVEF):
+    plt.close('all')
+    fig, ax1 = plt.subplots()
 
-        itmax = 10
-        niter = 0
-        WARN_BOUNDS = "OFF"
-        badvelflag = True
-        while badvelflag:
-            niter = niter + 1
-            redoflag="True"
-            while redoflag == "True":
-		# empty list to be added to with check flag for each interface
-		intfCHK = []
-                # shallowest interface at min crust thickness
-		r = random.uniform(chmin, (maxz-hmin))
-		rr = 0
-		while (rr < nintf):
-                    curINT = F[rr]
-                    if (((curINT-hmin) <= r <= curINT) or 
-                        (curINT <= r <= (curINT+hmin))):
-                        intfCHK.append("ON")
-                    else:
-                        intfCHK.append("OFF")
-                    rr = rr + 1
-		redoflag = "ON" in intfCHK
-            print "adding interface in at:   "+str(r)+" km depth\n" 
-            newF = np.append(F, r)
-            newF = sorted(newF)
-	
-            # Find index of new interface within the model so know which layer was 
-            # split and can adjust velocities appropriately
-            matching = [i for i,item in enumerate(newF) if item not in F]
-            matching = matching[0]
-            VSlen = len(vsIN)
-            vsOUT = np.zeros(VSlen+1)	
-	
-            # Copy velocity values over, the lower half of the split layer stays 
-            # the same velocity as before. The new layer (upper half of split) 
-            # gets assigned a new random velocity uniform between the velocities
-            # above and below (to avoid negative gradients)
-            wV2 = np.random.normal(0,thetaV2)
-        
-            if matching == 0: #crustal case perturb bottom half instead
-                vsOUT[0] = vsIN[0]
-                # Calculate expected "old" velocity value by extrapolating old
-                # sub-moho velocity gradient to new moho depth
-                vsOld = vsIN[1] + (vsIN[2] - vsIN[1])*(r - F[0])/(F[1] - F[0])
-                vsOUT[1] = vsOld + wV2
-                # vsOUT[1] = random.uniform(maxtwo(vmin,vsIN[0]),vsIN[1])
-                delv2 = vsIN[1]-vsIN[0] #Is this right?
-                vsOUT[2:] = vsIN[1:]
-            else:
-                vsOUT[0:matching] = vsIN[0:matching]
-                # determine the old velocity at the new interface from the 
-                # linear interpolation between the points above and below
-                # and then add in random perturbation
-                vsOld = (vsIN[matching - 1] + (vsIN[matching] - vsIN[matching - 1])*
-                         (r - F[matching - 1])/(F[matching] - F[matching - 1]))
-                vsOUT[matching] = vsOld + wV2
-                # vsOUT[matching] = random.uniform(maxtwo(vmin,vsIN[matching-1]), 
-                #                                  vsIN[matching])
-                delv2 = vsIN[matching]-vsIN[matching-1] #Is this right?
-                print 'vsIN[matching] ' + str(vsIN[matching])
-                print 'vsOUT[matching] ' + str(vsOUT[matching])
-                vsOUT[matching+1:(VSlen+1)] = vsIN[matching:VSlen]
-                # TEMP TEST
-                if vsOUT[matching] > 1000:
-                    print 'What is happening in randINTF?'
-                    print vsIN
-                    print vsOUT
-                    print vsOLD
-                    print wV2
-	
-            # If the velocity of the newly added layer is outside bounds or 
-            # creates a negative gradient, set flag
-            if (matching == 0):
-                depth = newF[0]
-                radius = planet_radius - depth
-                rad1 = prior_vrad[prior_vrad >= radius][-1]
-                rad2 = prior_vrad[prior_vrad <= radius][0]
-                vmin1 = prior_vmin[prior_vrad >= radius][-1]
-                vmin2 = prior_vmin[prior_vrad <= radius][0]
-                vmax1 = prior_vmax[prior_vrad >= radius][-1]
-                vmax2 = prior_vmax[prior_vrad <= radius][0]
-                
-                vmin = (vmin1 + (vmin2 - vmin1)*(radius - rad1)/(rad2 - rad1))
-                vmax = (vmax1 + (vmax2 - vmax1)*(radius - rad1)/(rad2 - rad1))
-                # if ((vsOUT[1] > vmax) or (vsOUT[1] < vmin) or 
-                #    (vsOUT[1] < vsOUT[0]) or (vsOUT[1] > vsOUT[2])):
-                # if ((vsOUT[1] > vmax) or (vsOUT[1] < vmin)):
-                grad2 = (vsOUT[2] - vsOUT[1])/(newF[1] - newF[0])
-                if ((vsOUT[1] > vmax) or (vsOUT[1] < vmin) or
-                    (grad2 < max_neg_grad)):
-                    print '!!! Velocity of new layer outside bounds !!!'
-                    print 'Try a new interface and velocity'
-                    if niter > itmax:
-                        print 'WARNING, exceeded itmax'
-                        WARN_BOUNDS = 'ON'
-                        badvelflag = False
-                        delv = 0.0
-                else:
-                    badvelflag = False
-                    delv11 = prior_delv[prior_vrad >= radius][-1]
-                    delv22 = prior_delv[prior_vrad <= radius][0]
-                    delv = (delv11 + (delv22 - delv11)*(radius-rad1)/(rad2-rad1))
-            else:
-                depth = newF[matching - 1]
-                radius = planet_radius - depth
-                rad1 = prior_vrad[prior_vrad >= radius][-1]
-                rad2 = prior_vrad[prior_vrad <= radius][0]
-                vmin1 = prior_vmin[prior_vrad >= radius][-1]
-                vmin2 = prior_vmin[prior_vrad <= radius][0]
-                vmax1 = prior_vmax[prior_vrad >= radius][-1]
-                vmax2 = prior_vmax[prior_vrad <= radius][0]
-                
-                vmin = (vmin1 + (vmin2 - vmin1)*(radius - rad1)/(rad2 - rad1))
-                vmax = (vmax1 + (vmax2 - vmax1)*(radius - rad1)/(rad2 - rad1))
-                # if ((vsOUT[matching] > vmax) or (vsOUT[matching] < vmin) or 
-                #    (vsOUT[matching] > vsOUT[matching + 1]) or 
-                #    (vsOUT[matching] < vsOUT[matching - 1])):
-                # if ((vsOUT[matching] > vmax) or (vsOUT[matching] < vmin)):
-                grad1 = ((vsOUT[matching] - vsOUT[matching-1])/
-                         (newF[matching-1] - newF[matching-2]))
-                grad2 = ((vsOUT[matching+1] - vsOUT[matching])/
-                         (newF[matching] - newF[matching-1]))
-                print 'test grad 1 ',grad1,grad2
-                # Set grad2 to fail check if final gradient is negative
-                if (matching == nintf - 1) and (grad2 < 0.0):
-                    grad2 = max_neg_grad - 0.1
-                if ((vsOUT[matching] > vmax) or (vsOUT[matching] < vmin) or
-                    (grad1 < max_neg_grad) or (grad2 < max_neg_grad)):
-                    print '!!! Velocity of new layer outside bounds !!!'
-                    print 'Try a new interface and velocity'
-                    if niter > itmax:
-                        print 'WARNING, exceeded itmax'
-                        WARN_BOUNDS = 'ON'
-                        badvelflag = False
-                        delv = 0.0
-                else:
-                    badvelflag = False
-                    delv11 = prior_delv[prior_vrad >= radius][-1]
-                    delv22 = prior_delv[prior_vrad <= radius][0]
-                    delv = (delv11 + (delv22 - delv11)*(radius-rad1)/
-                            (rad2-rad1))
-	
-	return (r, newF, vsOUT, WARN_BOUNDS, matching, delv, delv2)
-	
-# ----------------------------------------------------------------------------
-def errorfig(PHI, BURN, chain, abc, run, maxz, SAVEF):
-	plt.close('all')
-	fig, ax1 = plt.subplots()
+    # These are in unitless percentages of the figure size. (0,0 is bottom left)
+    left, bottom, width, height = [0.63, 0.6, 0.25, 0.25]
+    ax2 = fig.add_axes([left, bottom, width, height])
 
-	# These are in unitless percentages of the figure size. (0,0 is bottom left)
-	left, bottom, width, height = [0.63, 0.6, 0.25, 0.25]
-	ax2 = fig.add_axes([left, bottom, width, height])
-
-	ax1.plot(PHI[BURN:], color='red')
+    ax1.plot(PHI[BURN:], color='red')
 	
-	#ax1.set_ylabel('E(m)', fontweight='bold', fontsize=14)
-	ax1.set_ylabel(r'$\phi$(m)', fontsize=20)
-	ax1.set_xlabel('Iteration',  fontweight='bold', fontsize=14)
-	figtitle = 'Evolution of model error '+ r'$\phi$(m)'+ '\n TRANS-D layers, '+str(1000*maxz)+' m total depth'
-	ax1.set_title(figtitle, fontweight='bold', fontsize=14)
+    #ax1.set_ylabel('E(m)', fontweight='bold', fontsize=14)
+    ax1.set_ylabel(r'$\phi$(m)', fontsize=20)
+    ax1.set_xlabel('Iteration',  fontweight='bold', fontsize=14)
+    figtitle = 'Evolution of model error '+ r'$\phi$(m)'
+    ax1.set_title(figtitle, fontweight='bold', fontsize=14)
 
-	ax2.plot(PHI[0:BURN], color='red')
-	ax2.set_ylabel(r'$\phi$(m)')
-	ax2.set_xlabel('Iteration')
-	ax2.set_title('Burn - in Period', fontsize=12)
+    ax2.plot(PHI[0:BURN], color='red')
+    ax2.set_ylabel(r'$\phi$(m)')
+    ax2.set_xlabel('Iteration')
+    ax2.set_title('Burn - in Period', fontsize=12)
 
-	Efig = SAVEF + '/' + 'Error_chain_' + str(chain)+'_'+abc[run]+'.png'
-	P.savefig(Efig)
+    Efig = SAVEF + '/' + 'Error_chain_' + str(chain)+'_'+abc[run]+'.png'
+    P.savefig(Efig)
 # ----------------------------------------------------------------------------
 def accratefig(totch, acc_rate, draw_acc_rate, abc, run, SAVEF):
-	plt.close('all')
-	pltx = range(totch)
-	plt.plot(pltx, acc_rate, 'ko')
-	plt.plot(pltx, acc_rate, 'k:')
-	plt.xlabel('Chain')
-	plt.ylabel('Acceptance Percentage (%)')
-	plt.axis([0, (totch-1), 0, 100])
-	plt.title('Generated Model Acceptance Rate', fontweight='bold', fontsize=14)
-	picname='Acceptance_rate_'+abc[run]+'.png'
-	accfig = SAVEF + '/' + picname
-	P.savefig(accfig)
+    plt.close('all')
+    pltx = range(totch)
+    plt.plot(pltx, acc_rate, 'ko')
+    plt.plot(pltx, acc_rate, 'k:')
+    plt.xlabel('Chain')
+    plt.ylabel('Acceptance Percentage (%)')
+    plt.axis([0, (totch-1), 0, 100])
+    plt.title('Generated Model Acceptance Rate', fontweight='bold', fontsize=14)
+    picname='Acceptance_rate_'+abc[run]+'.png'
+    accfig = SAVEF + '/' + picname
+    P.savefig(accfig)
+    plt.close('all')
+    for i in range(0, draw_acc_rate.shape[0]):
+        plt.plot(pltx, draw_acc_rate[i], 'ko')
+        plt.plot(pltx, draw_acc_rate[i], 'k:')
+        plt.xlabel('Chain')
+        plt.ylabel('Acceptance Percentage (%)')
+        plt.axis([0, (totch-1), 0, 100])
+        plt.title('Generated Model Acceptance Rate ' + str(i), 
+                  fontweight='bold', fontsize=14)
+        picname='Acceptance_rate_'+abc[run]+'_'+str(i)+'.png'
+        accfig = SAVEF + '/' + picname
+        P.savefig(accfig)
         plt.close('all')
-        for i in range(0, draw_acc_rate.shape[0]):
-            plt.plot(pltx, draw_acc_rate[i], 'ko')
-            plt.plot(pltx, draw_acc_rate[i], 'k:')
-            plt.xlabel('Chain')
-            plt.ylabel('Acceptance Percentage (%)')
-            plt.axis([0, (totch-1), 0, 100])
-            plt.title('Generated Model Acceptance Rate ' + str(i), 
-                      fontweight='bold', fontsize=14)
-            picname='Acceptance_rate_'+abc[run]+'_'+str(i)+'.png'
-            accfig = SAVEF + '/' + picname
-            P.savefig(accfig)
-            plt.close('all')
 
-            
+"""            
 # ----------------------------------------------------------------------------
 def nlhist(rep_cnt,repeat, NL, nmin, nmax, maxz_m, abc, run, SAVEF):
 	plt.close('all')

@@ -8,13 +8,16 @@ import math
 from tqdm import tqdm
 import datetime
 import os
-from MCMC_functions import startmodel, startchain, finderror, accept_reject
+from MCMC_functions import startmodel, startchain, finderror, accept_reject, errorfig, accratefig
 import tremor
 from obspy.core import UTCDateTime
 import instaseis
 import string
 import copy
 from random import randint
+import pickle
+import matplotlib.pyplot as plt
+import pylab as P
 
 # from numpy import inf, log, cos, array
 # from glob import glob
@@ -69,10 +72,11 @@ tremor_hi = 1.0
 tremor_ui = 0.0
 tremor_w0 = np.array([tremor_vi, tremor_hi, tremor_ui]) # initial conditions
 dur_taper = 0.05
-dur_threshold = 0.1
+dur_threshold = 0.2
+minR = 0.5
 
 # Instaseis stuff.  Need to make alternate method for amplitude that skips this
-ifInstaseis = True
+ifInstaseis = False
 if ifInstaseis:
         print("Initializing Instaseis database")
         db_short = "EH45Tcold"
@@ -102,6 +106,12 @@ if ifInstaseis:
         rlat = 4.5 #Landing site ellipse
         rlon = 135.9
 
+# Scaling parameters
+# Assume a power law scaling to estimated seismic moment: A = c0*M0^alpha
+# Parameters are estimated from regression of numbers from amp_scaling.py
+c0 = 3.523e-19
+alpha = 0.607
+
 
 # Make data vector.  Right now is hard-coded, but will adjust to read from file
 freq_obs = 0.4 # Dominant frequency of signal (Hz)
@@ -111,17 +121,17 @@ dobs = np.array([freq_obs, amp_obs, dur_obs])
 ndata = len(dobs)
 
 # Uncertainty estimates - 1 sigma
-wsig_freq = 0.3
+wsig_freq = 0.15
 wsig_amp = 3.e-10
-wsig_dur = 100.
+wsig_dur = 300.
 wsig = np.array([wsig_freq, wsig_amp, wsig_dur])
 
-# create boss matrix to control all combinations of starting number of layers 
+# create boss matrix to control all combinations of starting depths
 depopt = ([6.0, 60.0])
 muopt = ([7.e9, 70.e9])
-repeat = 1
+# repeat = 1
 all_letters = list(string.ascii_lowercase)
-letters = all_letters[0:repeat]
+# letters = all_letters[0:repeat]
 abc=[]
 
 DRAW = ['CHANGE CHANNEL LENGTH: Perturb the length of oscillating channel',
@@ -132,16 +142,16 @@ DRAW = ['CHANGE CHANNEL LENGTH: Perturb the length of oscillating channel',
 # ----------------
 # totch = 10			# Total number of chains
 # numm = 1000
-totch = 1
-numm = 1000			# Number of iterations per chain
+totch = 5
+numm = 100			# Number of iterations per chain
 # ----------------
 # ---------------------------------------------------------------------------------------
 # ----------------
-BURN = 200
+BURN = 20
 # BURN = 2000		# Number of models designated BURN-IN, gets discarded
 # M = 10			# Interval to keep models (e.g. keep every 100th model, M=100)
 M = 3
-MMM = np.arange(BURN-1,numm,M)
+MMM = np.arange(BURN-1,numm+M,M)
 # ----------------
 # ---------------------------------------------------------------------------------------
 #########Option to weight data points######### 
@@ -150,19 +160,23 @@ weight_opt = 'ON'
 #weight_opt = 'OFF'
 # --------------------------------------------
 doptnum = len(depopt)
-numrun = doptnum*repeat
+# numrun = doptnum*repeat
+numrun = doptnum
 
 boss = np.zeros((numrun, 2))
 k=0
 for i, dep in enumerate(depopt):
         print('starting depth option: {}'.format(dep))
-        r = 0
-        while r < repeat:
-                abc.append(letters[r])
-                r = r + 1
-                boss[k:k+repeat,0]=dep
-                boss[k:k+repeat,1]=muopt[i]
-                k=k+repeat
+        # r = 0
+        # while r < repeat:
+        #         abc.append(letters[r])
+        #         r = r + 1
+        #         boss[k:k+repeat,0]=dep
+        #         boss[k:k+repeat,1]=muopt[i]
+        #         k=k+repeat
+        abc.append(all_letters[i])
+        boss[i, 0] = dep
+        boss[i, 1] = muopt[i]
 
 reprunsPHI = []
 reprunsdiagCE = []
@@ -173,15 +187,15 @@ reprunsHIST = []
 # Given that many of these vary over orders of magnitude, maybe should use
 # log value as input, and thus it becomes log-normal perturbation.  Consider
 # this and whether it should effect acceptance criteria
-thetaL = 25.0 # Length perturbations
+thetaL = 2.5 # Length perturbations
 # thetaETA = 10.0 # Viscosity perturbations
-thetaETA = np.log(1.05) # Using a log normal perturbation instead
-thetaPR = 0.005 # Pressure ratio perturbatio
+thetaETA = np.log(1.025) # Using a log normal perturbation instead
+thetaPR = 0.001 # Pressure ratio perturbatio
 # thetaWL = 0.5 # Aspect ratio perturbation
-thetaWL = np.log(1.05) # Using a log normal perturbation instead
+thetaWL = np.log(1.025) # Using a log normal perturbation instead
 # ---------------------------------------------------------------------------------------
 
-savefname = "saved_initial_m"
+savefname = "saved_models"
 SAVEF = SAVEMs + '/' + savefname
 os.mkdir(SAVEF)
 
@@ -227,7 +241,7 @@ for run in range(numrun):
 
         # Set parameter bounds
         Lmin = 1.0
-        Lmax = 500.0
+        Lmax = 1000.0
 
         etamin = 1.0
         etamax = 1000.0
@@ -235,21 +249,21 @@ for run in range(numrun):
         prmin = 1.00001
         prmax = 1.1
 
-        wlmin = 5.0
+        wlmin = 1.0
         wlmax = 100.0
 
-        if rep_cnt == repeat:
-                rep_cnt = 0
-                RUNMODS = []
-                reprunsPHI = []
-                reprunsHIST = []
-                BEST_RUNMODS = []
-                BESTreprunPHI = []
-                BESTreprunNL = []
-                BESTrerunsSIGH = []
-                savefname = 'saved_initial'
-                SAVEF = SAVEMs + '/' + savefname
-                os.mkdir(SAVEF)
+        # if rep_cnt == repeat:
+        #         rep_cnt = 0
+        #         RUNMODS = []
+        #         reprunsPHI = []
+        #         reprunsHIST = []
+        #         BEST_RUNMODS = []
+        #         BESTreprunPHI = []
+        #         BESTreprunNL = []
+        #         BESTrerunsSIGH = []
+        #         savefname = 'saved_initial'
+        #         SAVEF = SAVEMs + '/' + savefname
+        #         os.mkdir(SAVEF)
 
 
         CHMODS = []
@@ -283,10 +297,14 @@ for run in range(numrun):
                 x.calc_f()
                 # Only do a model if f is less than observed + 2 sigma
                 freq_limit = freq_obs + 2.*wsig_freq
-                if x.f[0] > freq_limit:
-                        print("Frequency too high, generating new startmodel")
-                        while x.f[0] > freq_limit:
+                if (x.f[0] > freq_limit or x.R[0] < minR):
+                        print("Frequency too high or R too low, generating new startmodel")
+                        istart=0
+                        while x.f[0] > freq_limit or x.R[0] < minR:
                                 # Generate a new starting model and calc f
+                                istart += 1
+                                if (istart % 10 == 0):
+                                        print("Attempt {}".format(istart))
                                 L, eta, pratio, wl = startchain(Lmin, Lmax,
                                                                 etamin, etamax,
                                                                 prmin, prmax,
@@ -299,6 +317,7 @@ for run in range(numrun):
                                 x.calc_R()
                                 x.calc_f()
 
+                                
                 # Calculate other data parameters
                 print("Running tremor model")
                 x.generate_tremor(max_duration, tremor_dt, tremor_w0)
@@ -347,8 +366,11 @@ for run in range(numrun):
                         i2 = min(imax + int(dur_pre/dbdt), len(st[0].data))
                         vamp = np.sqrt(np.mean(st[0].data[i1:i2]**2))
                 else:
-                        raise NotImplementedError("Amplitude by scaling is " +
-                                                  "not yet implemented")
+                        M0 = m0_total[0]
+                        vamp = c0*math.pow(M0, alpha)
+                        # raise NotImplementedError("Amplitude by scaling is " +
+                        #                           "not yet implemented")
+                
                 dpre = np.zeros((ndata,numm))
                 dpre[:,0] = np.array([x.f[0], vamp, dur_pre])
                 x.number = 0
@@ -443,9 +465,9 @@ for run in range(numrun):
 
                                 print(DRAW[pDRAW])
 
-                                wETA = np.random.normal(0,thetaETA)
+                                wETA = np.exp(np.random.normal(0,thetaETA))
 
-                                newETA = np.exp(np.log(x.eta[0]) + wETA)
+                                newETA = x.eta[0] * wETA
                                 ETAdiff = newETA - x.eta[0]
 
                                 print('Perturb viscosity by ' + str(ETAdiff)
@@ -473,7 +495,7 @@ for run in range(numrun):
                                 wPR = np.random.normal(0, thetaPR)
 
                                 print('Perturb pressure ratio by ' +
-                                      str(wPR) + ' Pa')
+                                      str(wPR))
 
                                 newPR = x.pratio + wPR
 
@@ -496,9 +518,9 @@ for run in range(numrun):
 
                                 print(DRAW[pDRAW])
 
-                                wWL = np.random.normal(0, thetaWL)
+                                wWL = np.exp(np.random.normal(0, thetaWL))
 
-                                newWL = np.exp(np.log(x.wl) + wWL)
+                                newWL = x.wl * wWL
                                 WLdiff = newWL - x.wl
 
                                 print('Perturb aspect ratio by ' + str(WLdiff))
@@ -524,6 +546,10 @@ for run in range(numrun):
 
                         if x.f[0] > freq_limit:
                                 print("Frequency too high")
+                                print("Automatically REJECT model")
+                                WARN_BOUNDS = True
+                        elif x.R[0] < minR:
+                                print("R too low")
                                 print("Automatically REJECT model")
                                 WARN_BOUNDS = True
 
@@ -590,15 +616,20 @@ for run in range(numrun):
                                 i2 = min(imax + int(dur_pre/dbdt),
                                          len(st[0].data))
                                 vamp = np.sqrt(np.mean(st[0].data[i1:i2]**2))
+                                # print("Amp stuff {} {} {} {:.1f} {:.3E}".format(imax, i1, i2, dur_pre, vamp))
                         else:
-                                raise NotImplementedError("Amplitude by scaling is " +
-                                                          "not yet implemented")
+                                M0 = m0_total[0]
+                                vamp = c0 * math.pow(M0, alpha)
+                                # raise NotImplementedError("Amplitude by scaling is " +
+                                #                           "not yet implemented")
                         dpre[:, k+1] = np.array([x.f[0], vamp, dur_pre])
                         x.dpre = copy.deepcopy(dpre[:,k+1])
+                        x.number = k + 1
 
                         # Calculate error of the new model:
-                        print("Freq {:.4f}, Amplitude {:.3E}, Duration {:.1f}".format(x.f[0], vamp, dur_pre))
+                        print("Freq {:.4f}, Amplitude {:.3E}, Duration {:.1f}, R {:.3f}".format(x.f[0], vamp, dur_pre, x.R[0]))
                         print("L {:.1f} eta {:.1f} pratio {:.6f} aspect {:.1f}".format(x.L, x.eta[0], x.pratio, x.wl))
+                        print("M0 {:.3E}".format(M0))
                         misfit,newmis,PHI,x,diagCE = finderror(k,x,ndata,dpre,
                                                                dobs,misfit,
                                                                newmis,wsig,PHI,
@@ -626,49 +657,51 @@ for run in range(numrun):
 
                                 numaccept = numaccept + 1
                                 drawnumaccept[pDRAW] = drawnumaccept[pDRAW] + 1
-                                """
-				if k == MMM[keep_cnt]:
-					print ('Adding model #' + str(k + 1) +
-					       ' to the CHAIN ensemble')
-					CHMODS.append(x)
-					modl = x.filename
-					curlocation = MAIN + '/' + modl
-					newfilename = ('M' + str(ii) + '_' + 
-						       abc[run] + '_' + 
-						       str(chain)+ '_' + modl)
-					newlocation = SAVEF + '/' + newfilename
-					shutil.copy2(curlocation, newlocation)
+                                
+                                if k == MMM[keep_cnt]:
+                                        print ('Adding model #' + str(k + 1) +
+                                               ' to the CHAIN ensemble')
+                                        CHMODS.append(x)
+					# modl = x.filename
+					# curlocation = MAIN + '/' + modl
+					# newfilename = ('M' + str(ii) + '_' + 
+					# 	       abc[run] + '_' + 
+					# 	       str(chain)+ '_' + modl)
+					# newlocation = SAVEF + '/' + newfilename
+					# shutil.copy2(curlocation, newlocation)
 					# Try to also save a binary version of the
 					# MODEL class object
-					classOutName = ('M' + str(ii) + '_' + 
-							abc[run] + '_' + 
-							str(chain) + '_' + modl +
-							'.pkl')
-					newlocation = SAVEF + '/' + classOutName
-					with open(newlocation, 'wb') as output:
-						pickle.dump(sample, output, -1)
-					keep_cnt = keep_cnt + 1
+                                        modl = "{:06d}".format(x.number)
+                                        classOutName = ('M' + '_' + 
+                                                        abc[run] + '_' + 
+                                                        str(chain) + '_' +
+                                                        modl + '.pkl')
+                                        newlocation = SAVEF + '/' + classOutName
+                                        with open(newlocation, 'wb') as output:
+                                                pickle.dump(x, output)
+                                        keep_cnt = keep_cnt + 1
 
-			        #### Remove all models from current chain ####
-				for filename in glob(MAIN+"/*.swm"):
-					os.remove(filename) 
-				for filename in glob(MAIN+"/*.tvel"):
-					os.remove(filename) 
-				for filename in glob(MAIN+"/*.npz"):
-					os.remove(filename) 
+			        # #### Remove all models from current chain ####
+				# for filename in glob(MAIN+"/*.swm"):
+				# 	os.remove(filename) 
+				# for filename in glob(MAIN+"/*.tvel"):
+				# 	os.remove(filename) 
+				# for filename in glob(MAIN+"/*.npz"):
+				# 	os.remove(filename) 
 				
 			        # move to next iteration
-                                """
+                                
                                 k = k + 1
-                                """
+                                
 	
 		# Calculate the acceptance rate for the chain:
-		numgen = numreject + numaccept
-		drawnumgen = drawnumreject + drawnumaccept
-		acc_rate[chain] = (numaccept/numgen)*100
-		draw_acc_rate[:,chain] = (drawnumaccept[:]/drawnumgen[:])*100.0
-		print draw_acc_rate
+                numgen = numreject + numaccept
+                drawnumgen = drawnumreject + drawnumaccept
+                acc_rate[chain] = (numaccept/numgen)*100
+                draw_acc_rate[:,chain] = (drawnumaccept[:]/drawnumgen[:])*100.0
+                print(draw_acc_rate)
 
+                """
 		if errorflag1 == 'on':
 			print " "
 			print " error occurred on first model generation, "
@@ -676,65 +709,67 @@ for run in range(numrun):
 			print " "
 			errorflag1 = 'off'
 		else:
-			print PHI
-			inumm = numm + 0.0
-			cc = ([plt.cm.brg(columnno/inumm) 
-			       for columnno in range(numm)])
-			plt.close('all')
-				
-		       	# # Ignore first BURN # of models as burn-in period
-			# keepM = ITMODS[BURN:numm]
-			# numremain = len(keepM)
-				
-	       		# # Keep every Mth model from the chain
-       			# ii = BURN - 1
-			# while (ii < numm):
-			# 	sample = copy.deepcopy(ITMODS[ii])
-			# 	print ('Adding model #  [ '+str(sample.number)+
-			# 	       ' ]  to the CHAIN ensemble')
-			# 	CHMODS.append(sample)
-			# 	modl = sample.filename
-			# 	curlocation = MAIN + '/' + modl
-			# 	newfilename = ('M'+str(ii)+'_'+abc[run]+ '_' 
-			# 		       + str(chain)+ '_' + modl)
-			# 	newlocation = SAVEF + '/' + newfilename
-			# 	shutil.copy2(curlocation, newlocation)
-			# 	# Try to also save a binary version of the
-			# 	# MODEL class object
-			# 	classOutName = ('M' + str(ii) + '_' + abc[run] +
-			# 			'_' + str(chain) + '_' + modl +
-			# 			'.pkl')
-			# 	newlocation = SAVEF + '/' + classOutName
-			# 	with open(newlocation, 'wb') as output:
-			# 		pickle.dump(sample, output, -1)
-			# 	ii = ii + M
-					
-			# #### Remove all models from current chain ####
-		       	# for filename in glob(MAIN+"/*.swm"):
-			# 	os.remove(filename) 
-		       	# for filename in glob(MAIN+"/*.tvel"):
-			# 	os.remove(filename) 
-		       	# for filename in glob(MAIN+"/*.npz"):
-			# 	os.remove(filename) 
-				
-			#### Plot the error at each iterations ####
-			errorfig(PHI, BURN, chain, abc, run, maxz, SAVEF)
-								
-			# # Keep lowest error models from posterior distribution
-			# realmin = np.argsort(PHI)
-			# jj=0
-			# while (jj < keep):				
-			# 	ind=realmin[jj]
-			# 	sample = copy.deepcopy(ITMODS[ind])
-			# 	BEST_CHMODS.append(sample)
-			# 	jj = jj + 1	
+                """
+                print(PHI)
+                inumm = numm + 0.0
+                cc = ([plt.cm.brg(columnno/inumm) 
+                       for columnno in range(numm)])
+                plt.close('all')
 
-		       	#### Advance to next chain ####
-			chain = chain + 1
+                # # Ignore first BURN # of models as burn-in period
+                # keepM = ITMODS[BURN:numm]
+                # numremain = len(keepM)
+
+                # # Keep every Mth model from the chain
+                # ii = BURN - 1
+                # while (ii < numm):
+                # 	sample = copy.deepcopy(ITMODS[ii])
+                # 	print ('Adding model #  [ '+str(sample.number)+
+                # 	       ' ]  to the CHAIN ensemble')
+                # 	CHMODS.append(sample)
+                # 	modl = sample.filename
+                # 	curlocation = MAIN + '/' + modl
+                # 	newfilename = ('M'+str(ii)+'_'+abc[run]+ '_' 
+                # 		       + str(chain)+ '_' + modl)
+                # 	newlocation = SAVEF + '/' + newfilename
+                # 	shutil.copy2(curlocation, newlocation)
+                # 	# Try to also save a binary version of the
+                # 	# MODEL class object
+                # 	classOutName = ('M' + str(ii) + '_' + abc[run] +
+                # 			'_' + str(chain) + '_' + modl +
+                # 			'.pkl')
+                # 	newlocation = SAVEF + '/' + classOutName
+                # 	with open(newlocation, 'wb') as output:
+                # 		pickle.dump(sample, output, -1)
+                # 	ii = ii + M
+
+                # #### Remove all models from current chain ####
+                # for filename in glob(MAIN+"/*.swm"):
+                # 	os.remove(filename) 
+                # for filename in glob(MAIN+"/*.tvel"):
+                # 	os.remove(filename) 
+                # for filename in glob(MAIN+"/*.npz"):
+                # 	os.remove(filename) 
+
+                #### Plot the error at each iterations ####
+                errorfig(PHI, BURN, chain, abc, run, SAVEF)
+
+                # # Keep lowest error models from posterior distribution
+                # realmin = np.argsort(PHI)
+                # jj=0
+                # while (jj < keep):				
+                # 	ind=realmin[jj]
+                # 	sample = copy.deepcopy(ITMODS[ind])
+                # 	BEST_CHMODS.append(sample)
+                # 	jj = jj + 1	
+
+                #### Advance to next chain ####
+                chain = chain + 1
 	
+
 	#### Plot acceptance rate ####
-	accratefig(totch, acc_rate, draw_acc_rate, abc, run, SAVEF)
-	
+        accratefig(totch, acc_rate, draw_acc_rate, abc, run, SAVEF)
+        """
 	keptPHI = []
 	nummods = len(CHMODS)		
 	INTF=[]	
@@ -854,7 +889,7 @@ for run in range(numrun):
 		#### Create the pdf figures for disperions curves and models ####
 		# setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax)
 """					
-                rep_cnt = rep_cnt + 1
+        # rep_cnt = rep_cnt + 1
 """
 Elog.close()
 
