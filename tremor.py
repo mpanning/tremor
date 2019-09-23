@@ -337,6 +337,8 @@ class TremorModel(object):
             durations[i] = tarray[ind] - tarray[0]
             if durations[i] < t_taper:
                 durations[i] = t_taper
+        # Add to object and return
+        self.durations = durations
         return durations
 
     def get_moments(self, window=None, taper=None):

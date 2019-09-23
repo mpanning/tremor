@@ -73,7 +73,9 @@ tremor_ui = 0.0
 tremor_w0 = np.array([tremor_vi, tremor_hi, tremor_ui]) # initial conditions
 dur_taper = 0.05
 dur_threshold = 0.2
-minR = 0.5
+minR = 0.1 # Set these ridiculously wide to test implementing R as data
+maxR = 2.0
+fmax = 0.8
 
 # Instaseis stuff.  Need to make alternate method for amplitude that skips this
 ifInstaseis = False
@@ -114,17 +116,30 @@ alpha = 0.607
 
 
 # Make data vector.  Right now is hard-coded, but will adjust to read from file
-freq_obs = 0.4 # Dominant frequency of signal (Hz)
-amp_obs = 1.e-9 # Acceleration amplitude (m/s^2)
-dur_obs = 1000.0 # Duration of observed signal (s)
-dobs = np.array([freq_obs, amp_obs, dur_obs])
+freq_obs = 0.2 # Dominant frequency of signal (Hz)
+period_obs = 1./freq_obs
+amp_obs = 2.e-9 # Acceleration amplitude (m/s^2)
+# dur_obs = 1000.0 # Duration of observed signal (s)
+# Instead of unstable dur measurement, just use R value instead
+# dobs = np.array([freq_obs, amp_obs])
+dobs = np.array([period_obs, amp_obs])
 ndata = len(dobs)
 
 # Uncertainty estimates - 1 sigma
-wsig_freq = 0.15
-wsig_amp = 3.e-10
-wsig_dur = 300.
-wsig = np.array([wsig_freq, wsig_amp, wsig_dur])
+wsig_freq = 0.05
+wsig_period = 1.0
+wsig_amp = 2.e-9
+# wsig_dur = 300.
+# wsig = np.array([wsig_freq, wsig_amp])
+wsig = np.array([wsig_period, wsig_amp])
+
+# Additional prior constraints
+# Add in a misfit constraint based on R values and append to data vector
+R_expected = 0.95
+R_sigma = 0.05
+dobs = np.append(dobs, R_expected)
+ndata += 1
+wsig = np.append(wsig, R_sigma)
 
 # create boss matrix to control all combinations of starting depths
 depopt = ([6.0, 60.0])
@@ -142,15 +157,15 @@ DRAW = ['CHANGE CHANNEL LENGTH: Perturb the length of oscillating channel',
 # ----------------
 # totch = 10			# Total number of chains
 # numm = 1000
-totch = 5
-numm = 100			# Number of iterations per chain
+totch = 3
+numm = 10000			# Number of iterations per chain
 # ----------------
 # ---------------------------------------------------------------------------------------
 # ----------------
-BURN = 20
+BURN = 1000
 # BURN = 2000		# Number of models designated BURN-IN, gets discarded
 # M = 10			# Interval to keep models (e.g. keep every 100th model, M=100)
-M = 3
+M = 10
 MMM = np.arange(BURN-1,numm+M,M)
 # ----------------
 # ---------------------------------------------------------------------------------------
@@ -187,12 +202,23 @@ reprunsHIST = []
 # Given that many of these vary over orders of magnitude, maybe should use
 # log value as input, and thus it becomes log-normal perturbation.  Consider
 # this and whether it should effect acceptance criteria
-thetaL = 2.5 # Length perturbations
-# thetaETA = 10.0 # Viscosity perturbations
-thetaETA = np.log(1.025) # Using a log normal perturbation instead
-thetaPR = 0.001 # Pressure ratio perturbatio
-# thetaWL = 0.5 # Aspect ratio perturbation
-thetaWL = np.log(1.025) # Using a log normal perturbation instead
+thetaL = np.log(1.05) # Length perturbations
+thetaETA = np.log(1.05) # Using a log normal perturbation instead
+thetaPR = np.log(1.005) # Pressure ratio perturbatio
+thetaWL = np.log(1.05) # Using a log normal perturbation instead
+
+# Use higher values during burn-in time period if highburn True
+highburn = False
+if highburn:
+        thetaL_burn = np.log(1.2)
+        thetaETA_burn = np.log(1.2)
+        thetaPR_burn = np.log(1.02)
+        thetaWL_burn = np.log(1.2)
+else:
+        thetaL_burn = thetaL
+        thetaETA_burn = thetaETA
+        thetaPR_burn = thetaPR
+        thetaWL_burn = thetaWL
 # ---------------------------------------------------------------------------------------
 
 savefname = "saved_models"
@@ -247,9 +273,9 @@ for run in range(numrun):
         etamax = 1000.0
 
         prmin = 1.00001
-        prmax = 1.1
+        prmax = 1.2
 
-        wlmin = 1.0
+        wlmin = 5.0
         wlmax = 100.0
 
         # if rep_cnt == repeat:
@@ -296,11 +322,13 @@ for run in range(numrun):
                 x.calc_R()
                 x.calc_f()
                 # Only do a model if f is less than observed + 2 sigma
-                freq_limit = freq_obs + 2.*wsig_freq
-                if (x.f[0] > freq_limit or x.R[0] < minR):
-                        print("Frequency too high or R too low, generating new startmodel")
+                # freq_limit = freq_obs + 2.*wsig_freq
+                if (x.f[0] > fmax or x.R[0] < minR or x.R[0] > maxR):
+                        print("Frequency too high or R out of range, " +
+                              "generating new startmodel")
                         istart=0
-                        while x.f[0] > freq_limit or x.R[0] < minR:
+                        while (x.f[0] > fmax or x.R[0] < minR
+                               or x.R[0] > maxR):
                                 # Generate a new starting model and calc f
                                 istart += 1
                                 if (istart % 10 == 0):
@@ -372,7 +400,8 @@ for run in range(numrun):
                         #                           "not yet implemented")
                 
                 dpre = np.zeros((ndata,numm))
-                dpre[:,0] = np.array([x.f[0], vamp, dur_pre])
+                # dpre[:,0] = np.array([x.f[0], vamp, x.R[0]])
+                dpre[:,0] = np.array([1./x.f[0], vamp, x.R[0]])
                 x.number = 0
                 x.dpre = copy.deepcopy(dpre[:,0])
 
@@ -438,10 +467,17 @@ for run in range(numrun):
 
                                 print(DRAW[pDRAW])
 
-                                wL = np.random.normal(0,thetaL)
-                                newL = x.L + wL
+                                if k < BURN:
+                                        theta = thetaL_burn
+                                else:
+                                        theta = theta
+
+                                wL = np.exp(np.random.normal(0,theta))
+                                newL = wL * x.L
+                                Ldiff = newL - x.L
+                                
                                 print('Perturb channel length by ' + 
-                                      str(wL) + ' km')
+                                      str(Ldiff) + ' km')
 
                                 if ((newL < Lmin) or 
                                     (newL > Lmax)):
@@ -465,7 +501,12 @@ for run in range(numrun):
 
                                 print(DRAW[pDRAW])
 
-                                wETA = np.exp(np.random.normal(0,thetaETA))
+                                if k < BURN:
+                                        theta = thetaETA_burn
+                                else:
+                                        theta = thetaETA
+
+                                wETA = np.exp(np.random.normal(0,theta))
 
                                 newETA = x.eta[0] * wETA
                                 ETAdiff = newETA - x.eta[0]
@@ -492,12 +533,19 @@ for run in range(numrun):
 
                                 print(DRAW[pDRAW])
 
-                                wPR = np.random.normal(0, thetaPR)
+                                if k < BURN:
+                                        theta = thetaPR_burn
+                                else:
+                                        theta = thetaPR
+
+                                wPR = np.exp(np.random.normal(0, theta))
+                                newPR = wPR * x.pratio
+                                PRdiff = newPR - x.pratio
 
                                 print('Perturb pressure ratio by ' +
-                                      str(wPR))
+                                      str(PRdiff))
 
-                                newPR = x.pratio + wPR
+                                # newPR = x.pratio + wPR
 
                                 if (newPR < prmin) or (newPR > prmax):
                                         print("!!! Outside pressure " +
@@ -518,7 +566,12 @@ for run in range(numrun):
 
                                 print(DRAW[pDRAW])
 
-                                wWL = np.exp(np.random.normal(0, thetaWL))
+                                if k < BURN:
+                                        theta = thetaWL_burn
+                                else:
+                                        theta = thetaWL
+
+                                wWL = np.exp(np.random.normal(0, theta))
 
                                 newWL = x.wl * wWL
                                 WLdiff = newWL - x.wl
@@ -544,12 +597,12 @@ for run in range(numrun):
                         x.calc_R()
                         x.calc_f()
 
-                        if x.f[0] > freq_limit:
+                        if x.f[0] > fmax:
                                 print("Frequency too high")
                                 print("Automatically REJECT model")
                                 WARN_BOUNDS = True
-                        elif x.R[0] < minR:
-                                print("R too low")
+                        elif (x.R[0] < minR or x.R[0] > maxR):
+                                print("R out of range")
                                 print("Automatically REJECT model")
                                 WARN_BOUNDS = True
 
@@ -622,7 +675,8 @@ for run in range(numrun):
                                 vamp = c0 * math.pow(M0, alpha)
                                 # raise NotImplementedError("Amplitude by scaling is " +
                                 #                           "not yet implemented")
-                        dpre[:, k+1] = np.array([x.f[0], vamp, dur_pre])
+                        # dpre[:, k+1] = np.array([x.f[0], vamp, x.R[0]])
+                        dpre[:, k+1] = np.array([1./x.f[0], vamp, x.R[0]])
                         x.dpre = copy.deepcopy(dpre[:,k+1])
                         x.number = k + 1
 
