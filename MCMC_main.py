@@ -18,6 +18,9 @@ from random import randint
 import pickle
 import matplotlib.pyplot as plt
 import pylab as P
+import getopt, sys
+
+VERSION = 0.1
 
 # from numpy import inf, log, cos, array
 # from glob import glob
@@ -58,8 +61,33 @@ MAIN = '/Users/panning/work_local/Insight/tremor/MCMC'
 os.chdir(MAIN)
 # MAIN = os.getcwd()
 
+# Check to see if we're running in parallel mode
+ifParallel = False
+fullCmdArgs = sys.argv
+if len(fullCmdArgs) > 1:
+        argList = fullCmdArgs[1:]
+        unixOptions = "hvp:"
+        gnuOptions = ["help", "version", "parallel="]
+        try:
+                arguments, values = getopt.getopt(argList, unixOptions,
+                                                  gnuOptions)
+        except getopt.error as err:
+                print(str(err))
+                sys.exit(2)
+        for currentArg, currentValue in arguments:
+                if currentArg in ("-h", "--help"):
+                        print("Help not written yet")
+                elif currentArg in ("-v", "--version"):
+                        print("MCMC_main version {}".format(VERSION))
+                elif currentArg in ("-p", "--parallel"):
+                        parallelIndex = int(currentValue)
+                        ifParallel = True
+                        print("Setting parallel mode with index {}".format(parallelIndex))
+
 now = datetime.datetime.now()
-foldername = now.strftime("%m_%d_%Y_%H:%M")
+foldername = now.strftime("%m_%d_%Y_%H_%M")
+if ifParallel:
+        foldername = foldername + "_" + "{:04d}".format(parallelIndex)
 os.mkdir(foldername)
 
 SAVEMs = MAIN + '/' + foldername
@@ -116,9 +144,9 @@ alpha = 0.607
 
 
 # Make data vector.  Right now is hard-coded, but will adjust to read from file
-freq_obs = 0.2 # Dominant frequency of signal (Hz)
+freq_obs = 0.35 # Dominant frequency of signal (Hz)
 period_obs = 1./freq_obs
-amp_obs = 2.e-9 # Acceleration amplitude (m/s^2)
+amp_obs = 1.5e-9 # Acceleration amplitude (m/s^2)
 # dur_obs = 1000.0 # Duration of observed signal (s)
 # Instead of unstable dur measurement, just use R value instead
 # dobs = np.array([freq_obs, amp_obs])
@@ -128,7 +156,7 @@ ndata = len(dobs)
 # Uncertainty estimates - 1 sigma
 wsig_freq = 0.05
 wsig_period = 1.0
-wsig_amp = 2.e-9
+wsig_amp = 1.e-9
 # wsig_dur = 300.
 # wsig = np.array([wsig_freq, wsig_amp])
 wsig = np.array([wsig_period, wsig_amp])
@@ -730,10 +758,20 @@ for run in range(numrun):
 					# Try to also save a binary version of the
 					# MODEL class object
                                         modl = "{:06d}".format(x.number)
-                                        classOutName = ('M' + '_' + 
-                                                        abc[run] + '_' + 
-                                                        str(chain) + '_' +
-                                                        modl + '.pkl')
+                                        if ifParallel:
+                                                parl = "{:04d}".format(parallelIndex)
+                                                classOutName = ('M_' + abc[run]
+                                                                + '_' +
+                                                                str(chain) +
+                                                                '_' + modl +
+                                                                '_' + parl +
+                                                                '.pkl')
+                                        else:
+                                                classOutName = ('M' + '_' + 
+                                                                abc[run] + '_'
+                                                                + str(chain) +
+                                                                '_' + modl +
+                                                                '.pkl')
                                         newlocation = SAVEF + '/' + classOutName
                                         with open(newlocation, 'wb') as output:
                                                 pickle.dump(x, output)
@@ -828,8 +866,8 @@ for run in range(numrun):
 	#### Plot acceptance rate ####
         accratefig(totch, acc_rate, draw_acc_rate, abc, run, SAVEF)
         
-	keptPHI = []
-	nummods = len(CHMODS)		
+        keptPHI = []
+        nummods = len(CHMODS)		
 	# INTF=[]	
 	# NM=[]	
 	# SIGH=[]
@@ -837,13 +875,13 @@ for run in range(numrun):
         ETA = []
         WL = []
         PR = []
-	jj = 0
-	while (jj < nummods):
-		sample = copy.deepcopy(CHMODS[jj])
-		RUNMODS.append(sample)
+        jj = 0
+        while (jj < nummods):
+                sample = copy.deepcopy(CHMODS[jj])
+                RUNMODS.append(sample)
 		
-		curPHI = sample.PHI
-		keptPHI = np.append(keptPHI, curPHI)
+                curPHI = sample.PHI
+                keptPHI = np.append(keptPHI, curPHI)
 		
 		# newcol = 1000*(sample.intf)
 		# newcol = np.array(sample.mantleR)
@@ -859,7 +897,7 @@ for run in range(numrun):
 		# 	SIGH = copy.deepcopy(newsighyp)
 		# else:
 		# 	SIGH=np.vstack((SIGH, newsighyp))
-		jj = jj + 1
+                jj = jj + 1
 		
 	# runINTF = np.append(runINTF, INTF)
 	# runNM = np.append(runNM, NM)
@@ -867,17 +905,17 @@ for run in range(numrun):
 	# 	runSIGH = copy.deepcopy(SIGH)
 	# else:
 	# 	runSIGH = np.vstack((runSIGH, SIGH))
-	runPHI = np.append(runPHI, keptPHI)
+        runPHI = np.append(runPHI, keptPHI)
         runLENGTH = np.append(runLENGTH, LENGTH)
         runETA = np.append(runETA, ETA)
         runWL = np.append(runWL, WL)
         runPR = np.append(runPR, PR)
 	
-	PHIind = np.argsort(keptPHI)
-	Ult_ind = PHIind[0]
-	revPHIind = PHIind[::-1]
+        PHIind = np.argsort(keptPHI)
+        Ult_ind = PHIind[0]
+        revPHIind = PHIind[::-1]
         
-	"""			
+        """			
 	#### Plot histogram of the number of layers ####		
 	nlhist(rep_cnt,repeat, NM, nmin, nmax, maxz_m, abc, run, SAVEF)
 	
