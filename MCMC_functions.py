@@ -197,7 +197,45 @@ def accratefig(totch, acc_rate, draw_acc_rate, abc, run, SAVEF):
         accfig = SAVEF + '/' + picname
         P.savefig(accfig)
         plt.close('all')
+# ----------------------------------------------------------------------------
+def fhist(dir, letter, fmin, fmax, nfbins, freqs):
+    plt.close('all')
+    P.figure
+    P.hist(freqs, bins= np.linspace(fmin, fmax, nfbins))
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Count')
+    figname = dir + letter + '_fhist.png'
+    P.savefig(figname)
 
+# ----------------------------------------------------------------------------
+def pdhist(dir, letter, pmin, pmax, npbins, pds):
+    plt.close('all')
+    P.figure
+    P.hist(pds, bins= np.linspace(pmin, pmax, npbins))
+    plt.xlabel('Period (s)')
+    plt.ylabel('Count')
+    figname = dir + letter + '_pdhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def amphist(dir, letter, amin, amax, nabins, amps):
+    plt.close('all')
+    P.figure
+    P.hist(amps, bins= np.linspace(amin, amax, nabins))
+    plt.xlabel(r'Amplitude (m/s$^2$)')
+    plt.ylabel('Count')
+    figname = dir + letter + '_amphist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
+    plt.close('all')
+    P.figure
+    P.hist(Rs, bins= np.linspace(Rmin, Rmax, nRbins))
+    plt.xlabel(r'Amplitude (m/s$^2$)')
+    plt.ylabel('Count')
+    figname = dir + letter + '_Rhist.png'
+    P.savefig(figname)
+
+    
 """            
 # ----------------------------------------------------------------------------
 def nlhist(rep_cnt,repeat, NL, nmin, nmax, maxz_m, abc, run, SAVEF):

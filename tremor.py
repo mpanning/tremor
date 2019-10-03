@@ -189,7 +189,7 @@ class TremorModel(object):
             self.M = 0.5 * self.rho * self.L * self.L
         if self.h0 is None:
             self.h0 = -0.5*h0_equil_frac*(self.p1 + self.p2)*self.L/self.k
-        self.aspect = self.width/self.L # May allow this to be set
+        # self.wl = self.width/self.L # May allow this to be set
         self.Vp = math.sqrt(3.*self.mu/self.rho) # Assumes Poisson solid
 
     def set_eta(self, eta):

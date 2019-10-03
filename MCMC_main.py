@@ -252,10 +252,14 @@ pdfcmap=('GREYS_rev','HOT')
 RUNMODS = []
 runPHI = []
 rnummods = len(RUNMODS)		
-runINTF=[]	
-runNM=[]	
-runSIGH=[]
-rep_cnt = 0
+# runINTF=[]	
+# runNM=[]	
+# runSIGH=[]
+# rep_cnt = 0
+runLENGTH = []
+runETA = []
+runWL = []
+runPR = []
 
 print("Starting loop on {} runs".format(numrun))
 for run in range(numrun):	
@@ -823,12 +827,16 @@ for run in range(numrun):
 
 	#### Plot acceptance rate ####
         accratefig(totch, acc_rate, draw_acc_rate, abc, run, SAVEF)
-        """
+        
 	keptPHI = []
 	nummods = len(CHMODS)		
-	INTF=[]	
-	NM=[]	
-	SIGH=[]
+	# INTF=[]	
+	# NM=[]	
+	# SIGH=[]
+        LENGTH = []
+        ETA = []
+        WL = []
+        PR = []
 	jj = 0
 	while (jj < nummods):
 		sample = copy.deepcopy(CHMODS[jj])
@@ -837,30 +845,39 @@ for run in range(numrun):
 		curPHI = sample.PHI
 		keptPHI = np.append(keptPHI, curPHI)
 		
-		#newcol = 1000*(sample.intf)
-		newcol = np.array(sample.mantleR)
-		INTF = np.append(INTF, newcol)	
-		newnm = sample.nmantle
-		NM = np.append(NM, newnm)	
-		newsighyp = sample.sighyp
-		if (jj == 0):
-			SIGH = copy.deepcopy(newsighyp)
-		else:
-			SIGH=np.vstack((SIGH, newsighyp))
+		# newcol = 1000*(sample.intf)
+		# newcol = np.array(sample.mantleR)
+		# INTF = np.append(INTF, newcol)	
+		# newnm = sample.nmantle
+		# NM = np.append(NM, newnm)	
+		# newsighyp = sample.sighyp
+                LENGTH = np.append(LENGTH, sample.L)
+                ETA = np.append(ETA, sample.eta[0])
+                WL = np.append(WL, sample.wl)
+                PR = np.append(PR, sample.pratio)
+		# if (jj == 0):
+		# 	SIGH = copy.deepcopy(newsighyp)
+		# else:
+		# 	SIGH=np.vstack((SIGH, newsighyp))
 		jj = jj + 1
 		
-	runINTF = np.append(runINTF, INTF)
-	runNM = np.append(runNM, NM)
-	if (run == 0):
-		runSIGH = copy.deepcopy(SIGH)
-	else:
-		runSIGH = np.vstack((runSIGH, SIGH))
+	# runINTF = np.append(runINTF, INTF)
+	# runNM = np.append(runNM, NM)
+	# if (run == 0):
+	# 	runSIGH = copy.deepcopy(SIGH)
+	# else:
+	# 	runSIGH = np.vstack((runSIGH, SIGH))
 	runPHI = np.append(runPHI, keptPHI)
+        runLENGTH = np.append(runLENGTH, LENGTH)
+        runETA = np.append(runETA, ETA)
+        runWL = np.append(runWL, WL)
+        runPR = np.append(runPR, PR)
 	
 	PHIind = np.argsort(keptPHI)
 	Ult_ind = PHIind[0]
 	revPHIind = PHIind[::-1]
-				
+        
+	"""			
 	#### Plot histogram of the number of layers ####		
 	nlhist(rep_cnt,repeat, NM, nmin, nmax, maxz_m, abc, run, SAVEF)
 	
