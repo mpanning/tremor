@@ -230,6 +230,15 @@ def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
     plt.close('all')
     P.figure
     P.hist(Rs, bins= np.linspace(Rmin, Rmax, nRbins))
+    plt.xlabel(r'R value')
+    plt.ylabel('Count')
+    figname = dir + letter + '_Rhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
+    plt.close('all')
+    P.figure
+    P.hist(Rs, bins= np.linspace(Rmin, Rmax, nRbins))
     plt.xlabel(r'Amplitude (m/s$^2$)')
     plt.ylabel('Count')
     figname = dir + letter + '_Rhist.png'

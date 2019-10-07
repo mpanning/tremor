@@ -10,7 +10,7 @@ import os
 import string
 from MCMC_functions import fhist, pdhist, amphist, Rhist
 
-model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/09_20_2019_14:22/saved_models/"
+model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run1/saved_models/"
 fmin = 0.0
 fmax = 1.0
 nfbins = 25
