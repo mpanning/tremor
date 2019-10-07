@@ -34,6 +34,12 @@ import pylab as P
 # import rayleigh_python
 # from obspy.taup import TauPyModel,taup_create
 
+# Global variables for use in MCMC_functions
+ifVerbose = False
+def set_global(verbflag=None):
+    global ifVerbose
+    if verbflag is not None:
+        ifVerbose = verbflag
 
 # ***************************** DEFINE FUNCTIONS *****************************
 def mintwo (number1, number2):
@@ -111,9 +117,10 @@ def finderror (k,x,ndata,dpre,dobs,misfit,newmis,wsig,PHI,diagCE,weight_opt):
     x.diagCE = diagCE[:]
     # print(misfit)
     # print(newmis)
-    print(e_sqd)
-    print('PHIold = ' + ' ' + str(PHIold) + '    ' + 'PHInew = ' + ' '
-          + str(PHInew))
+    if ifVerbose:
+        print(e_sqd)
+        print('PHIold = ' + ' ' + str(PHIold) + '    ' + 'PHInew = ' + ' '
+              + str(PHInew))
     return (misfit,newmis,PHI,x,diagCE)	
 # ----------------------------------------------------------------------------
 def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
@@ -127,16 +134,19 @@ def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
                 misck = math.exp(-(PHI[k+1]-PHI[k])/2)
             except OverflowError:
                 misck = 1
-            print('PHIs: '+str(PHI[k])+', '+str(PHI[k+1]))
-            print('misck is:   '+str(misck))
+            if ifVerbose:
+                print('PHIs: '+str(PHI[k])+', '+str(PHI[k+1]))
+                print('misck is:   '+str(misck))
             pac = mintwo(1,misck)
 			
-    print(' ')		
-    print('pac = min[ 1 , prior ratio x likelihood ratio x proposal ' +
-          'ratio ] :   ' + str(pac))
-    print(' ')
+    if ifVerbose:
+        print(' ')		
+        print('pac = min[ 1 , prior ratio x likelihood ratio x proposal ' +
+              'ratio ] :   ' + str(pac))
+        print(' ')
     q = random.uniform(0,1)
-    print('random q:   '+str(q))
+    if ifVerbose:
+        print('random q:   '+str(q))
     return (pac,q)
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------

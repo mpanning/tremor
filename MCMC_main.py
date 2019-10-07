@@ -8,7 +8,8 @@ import math
 from tqdm import tqdm
 import datetime
 import os
-from MCMC_functions import startmodel, startchain, finderror, accept_reject, errorfig, accratefig
+from MCMC_functions import (startmodel, startchain, finderror, accept_reject,
+			    errorfig, accratefig, set_global)
 import tremor
 from obspy.core import UTCDateTime
 import instaseis
@@ -18,36 +19,10 @@ from random import randint
 import pickle
 import matplotlib.pyplot as plt
 import pylab as P
-import getopt, sys
+import sys
+import argparse
 
 VERSION = 0.1
-
-# from numpy import inf, log, cos, array
-# from glob import glob
-# import numpy as np
-# import matplotlib
-# matplotlib.use('Agg')
-# import matplotlib.pyplot as plt
-# import matplotlib.patheffects as PathEffects
-# import matplotlib.colors as colors
-# from matplotlib.colors import LinearSegmentedColormap
-# import matplotlib.cm as cmx
-# from matplotlib import rc
-# import math
-# import os
-# import operator
-# import datetime
-# import sys
-# import copy
-# import subprocess
-# import random
-# from random import randint
-# import shutil
-# import pylab as P
-# import string
-# from pprint import pprint
-# from scipy.interpolate import interp1d
-# import cPickle as pickle
 
 # from MCMC_functions import (startmodel,MODEL,startchain,runmodel,finderror,
 # 			    randINTF,accept_reject,mintwo,runmodel_bw,errorfig,
@@ -56,33 +31,42 @@ VERSION = 0.1
 # ----------------------------------------------------------------------------
 # ****************************************************************************
 # --------------------------Set up INPUT information--------------------------
-# directory where working
-MAIN = '/Users/panning/work_local/Insight/tremor/MCMC'
-os.chdir(MAIN)
-# MAIN = os.getcwd()
+# # directory where working
+# MAIN = '/nobackup/planetseismology/panning'
+# os.chdir(MAIN)
+# # MAIN = os.getcwd()
 
 # Check to see if we're running in parallel mode
 ifParallel = False
-fullCmdArgs = sys.argv
-if len(fullCmdArgs) > 1:
-        argList = fullCmdArgs[1:]
-        unixOptions = "hvp:"
-        gnuOptions = ["help", "version", "parallel="]
-        try:
-                arguments, values = getopt.getopt(argList, unixOptions,
-                                                  gnuOptions)
-        except getopt.error as err:
-                print(str(err))
-                sys.exit(2)
-        for currentArg, currentValue in arguments:
-                if currentArg in ("-h", "--help"):
-                        print("Help not written yet")
-                elif currentArg in ("-v", "--version"):
-                        print("MCMC_main version {}".format(VERSION))
-                elif currentArg in ("-p", "--parallel"):
-                        parallelIndex = int(currentValue)
-                        ifParallel = True
-                        print("Setting parallel mode with index {}".format(parallelIndex))
+
+# Parse command line with argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("-v", "--version", help="display version number and exit",
+		    action="store_true")
+parser.add_argument("-V", "--verbose", help="display full diagnostic output",
+		    action="store_true")
+parser.add_argument("-p", "--parallel",
+		    help="set parallel processing index number", type=int)
+parser.add_argument("-d", "--directory",
+		    help="set root directory for model output")
+args = parser.parse_args()
+if args.version:
+	print("MCMC_main version {}".format(VERSION))
+	exit()
+if args.verbose:
+	ifVerbose = True
+else:
+	ifVerbose = False
+set_global(verbflag=ifVerbose)
+if args.parallel is not None:
+	ifParallel = True
+	parallelIndex = args.parallel
+	print("Setting parallel mode with index {}".format(parallelIndex))
+if args.directory is not None:
+	MAIN = args.directory
+	os.chdir(MAIN)
+else:
+	MAIN = os.getcwd()
 
 now = datetime.datetime.now()
 foldername = now.strftime("%m_%d_%Y_%H_%M")
@@ -108,33 +92,34 @@ fmax = 0.8
 # Instaseis stuff.  Need to make alternate method for amplitude that skips this
 ifInstaseis = False
 if ifInstaseis:
-        print("Initializing Instaseis database")
-        db_short = "EH45Tcold"
-        instaseisDB = ("http://instaseis.ethz.ch/blindtest_1s/" +
+	if ifVerbose:
+		print("Initializing Instaseis database")
+	db_short = "EH45Tcold"
+	instaseisDB = ("http://instaseis.ethz.ch/blindtest_1s/" +
                        "{}_1s/".format(db_short))
-        maxRetry = 25
-        db = instaseis.open_db(instaseisDB)
-        f1 = 0.005
-        f2 = 2.0
-        t0 = UTCDateTime(2019,3,1)
-        dbdt = db.info['dt']
-        dbnpts = db.info['npts']
+	maxRetry = 25
+	db = instaseis.open_db(instaseisDB)
+	f1 = 0.005
+	f2 = 2.0
+	t0 = UTCDateTime(2019,3,1)
+	dbdt = db.info['dt']
+	dbnpts = db.info['npts']
 
         # Define unit M0 CLVD moment tensor, lined up such that it represents a
         # vertical crack aligned E-W
-        scale = 1.0/math.sqrt(3.0) # Factor to correct for non-unit M0
-        m_rr = -1.0*scale
-        m_tt = 2.0*scale
-        m_pp = -1.0*scale
-        m_rt = 0.0*scale
-        m_rp = 0.0*scale
-        m_tp = 0.0*scale
+	scale = 1.0/math.sqrt(3.0) # Factor to correct for non-unit M0
+	m_rr = -1.0*scale
+	m_tt = 2.0*scale
+	m_pp = -1.0*scale
+	m_rt = 0.0*scale
+	m_rp = 0.0*scale
+	m_tp = 0.0*scale
 
-        slat = 11.28 # Assumed at Cerberus Fossae
-        slon = 166.37
+	slat = 11.28 # Assumed at Cerberus Fossae
+	slon = 166.37
 
-        rlat = 4.5 #Landing site ellipse
-        rlon = 135.9
+	rlat = 4.5 #Landing site ellipse
+	rlon = 135.9
 
 # Scaling parameters
 # Assume a power law scaling to estimated seismic moment: A = c0*M0^alpha
@@ -155,7 +140,7 @@ ndata = len(dobs)
 
 # Uncertainty estimates - 1 sigma
 wsig_freq = 0.05
-wsig_period = 1.0
+wsig_period = 0.5
 wsig_amp = 1.e-9
 # wsig_dur = 300.
 # wsig = np.array([wsig_freq, wsig_amp])
@@ -183,16 +168,16 @@ DRAW = ['CHANGE CHANNEL LENGTH: Perturb the length of oscillating channel',
         'CHANGE ASPECT: Change the width to length aspect ratio of channel',]
 # ---------------------------------------------------------------------------------------
 # ----------------
-# totch = 10			# Total number of chains
+# totch = 10                    # Total number of chains
 # numm = 1000
-totch = 3
-numm = 10000			# Number of iterations per chain
+totch = 1
+numm = 10000                      # Number of iterations per chain
 # ----------------
 # ---------------------------------------------------------------------------------------
 # ----------------
 BURN = 1000
-# BURN = 2000		# Number of models designated BURN-IN, gets discarded
-# M = 10			# Interval to keep models (e.g. keep every 100th model, M=100)
+# BURN = 2000           # Number of models designated BURN-IN, gets discarded
+# M = 10                        # Interval to keep models (e.g. keep every 100th model, M=100)
 M = 10
 MMM = np.arange(BURN-1,numm+M,M)
 # ----------------
@@ -209,7 +194,8 @@ numrun = doptnum
 boss = np.zeros((numrun, 2))
 k=0
 for i, dep in enumerate(depopt):
-        print('starting depth option: {}'.format(dep))
+        if ifVerbose:
+                print('starting depth option: {}'.format(dep))
         # r = 0
         # while r < repeat:
         #         abc.append(letters[r])
@@ -259,7 +245,7 @@ bossfile.write('   ' + '\n')
 bossfile.write('Depth of source (km)   Mu at source depth (Pa)\n')
 k=0
 while (k < numrun):
-	# maxdepth = boss[k,1]
+        # maxdepth = boss[k,1]
         depth = boss[k, 0]
         mu = boss[k, 1]
         writestring = "          {:6.2f}              {:e}\n".format(depth, mu)
@@ -267,7 +253,7 @@ while (k < numrun):
         k = k + 1
 bossfile.write('   ' + '\n')
 bossfile.write('TOTAL # OF CHAINS: '+str(totch)+'    ITERATIONS: '+str(numm)+
-	       '\n')
+               '\n')
 bossfile.write('   ' + '\n')
 bossfile.close()
 
@@ -279,9 +265,9 @@ pdfcmap=('GREYS_rev','HOT')
 
 RUNMODS = []
 runPHI = []
-rnummods = len(RUNMODS)		
-# runINTF=[]	
-# runNM=[]	
+rnummods = len(RUNMODS)         
+# runINTF=[]    
+# runNM=[]      
 # runSIGH=[]
 # rep_cnt = 0
 runLENGTH = []
@@ -290,7 +276,7 @@ runWL = []
 runPR = []
 
 print("Starting loop on {} runs".format(numrun))
-for run in range(numrun):	
+for run in range(numrun):       
         print("Working on run {}".format(run))
         # -------------------------------------------------------------------
         # --------------------------Set up MODEL information-----------------
@@ -337,11 +323,13 @@ for run in range(numrun):
         draw_acc_rate = np.zeros((len(DRAW),totch))
 
         """      ------  Loop through multiple chains:  -------------     """
-        print("Starting loop on chains")
+        if ifVerbose:
+                print("Starting loop on chains")
         for chain in range(totch):
 
                 # Create new tremor model with starting parameters
-                print("Initializing starting model")
+                if ifVerbose:
+                        print("Initializing starting model")
                 x = tremor.TremorModel(depth=boss0*1.e3,
                                        pratio=stpratio[chain], mu=boss1,
                                        L=stL[chain],
@@ -356,14 +344,15 @@ for run in range(numrun):
                 # Only do a model if f is less than observed + 2 sigma
                 # freq_limit = freq_obs + 2.*wsig_freq
                 if (x.f[0] > fmax or x.R[0] < minR or x.R[0] > maxR):
-                        print("Frequency too high or R out of range, " +
-                              "generating new startmodel")
+                        if ifVerbose:
+                                print("Frequency too high or R out of range, "
+                                      + "generating new startmodel")
                         istart=0
                         while (x.f[0] > fmax or x.R[0] < minR
                                or x.R[0] > maxR):
                                 # Generate a new starting model and calc f
                                 istart += 1
-                                if (istart % 10 == 0):
+                                if (istart % 10 == 0 and ifVerbose):
                                         print("Attempt {}".format(istart))
                                 L, eta, pratio, wl = startchain(Lmin, Lmax,
                                                                 etamin, etamax,
@@ -379,7 +368,8 @@ for run in range(numrun):
 
                                 
                 # Calculate other data parameters
-                print("Running tremor model")
+                if ifVerbose:
+                        print("Running tremor model")
                 x.generate_tremor(max_duration, tremor_dt, tremor_w0)
                 duration = x.get_durations(taper=dur_taper,
                                            threshold=dur_threshold)
@@ -391,7 +381,8 @@ for run in range(numrun):
                 # over the calculated source duration
                 m0_total, m0_average = x.get_moments(window=duration)
                 if ifInstaseis:
-                        print("Running Instaseis modeling")
+                        if ifVerbose:
+                                print("Running Instaseis modeling")
                         sliprate = x.u[0]
                         slipdt = tremor_dt
                         M0 = m0_total[0]
@@ -439,7 +430,7 @@ for run in range(numrun):
 
                 # dpre = np.zeros((ndata,numm))
                 # dpre[:,0] = np.concatenate([np.concatenate(dpre_sw), 
-                # 		       np.concatenate(dpre_bw)])
+                #                        np.concatenate(dpre_bw)])
                 # x.dpre = dpre[:,0]
 
                 # CALCULATE MISFIT BETWEEN D_PRE AND D_OBS:
@@ -452,7 +443,7 @@ for run in range(numrun):
                 misfit,newmis,PHI,x,diagCE = finderror((-1),x,ndata,dpre,dobs,
                                                        misfit,newmis,wsig,PHI,
                                                        diagCE,weight_opt)
-								   	   
+                                                                              
                 ITMODS = []
                 x.reduce_size() # Remove some large arrays from x to save space
                 ITMODS.append(x)
@@ -464,14 +455,15 @@ for run in range(numrun):
 
                 keep_cnt = 0
                 
-		# =============================================================
+                # =============================================================
                 k = 0
                 while (k < (numm-1)):
-				
-                        print("=============================================")
-                        print("                   CHAIN # [" + str(chain)+
-                              "]    ITERATION # ["+str(k)+"]" )
-                        print(" ")
+                        if ifVerbose:        
+                                print("=======================================")
+                                print("                   CHAIN # [" +
+                                      str(chain)+ "]    ITERATION # [" +
+                                      str(k) + "]" )
+                                print(" ")
 
                         # Set previous model object as "oldx" so can call on 
                         # it's attributes when needed
@@ -496,8 +488,8 @@ for run in range(numrun):
 
                         # Change channel length
                         if pDRAW == 0:
-
-                                print(DRAW[pDRAW])
+                                if ifVerbose:
+                                        print(DRAW[pDRAW])
 
                                 if k < BURN:
                                         theta = thetaL_burn
@@ -508,14 +500,17 @@ for run in range(numrun):
                                 newL = wL * x.L
                                 Ldiff = newL - x.L
                                 
-                                print('Perturb channel length by ' + 
-                                      str(Ldiff) + ' km')
+                                if ifVerbose:
+                                        print('Perturb channel length by ' + 
+                                              str(Ldiff) + ' km')
 
                                 if ((newL < Lmin) or 
                                     (newL > Lmax)):
-                                        print("!!! Outside channel " +
-                                              "length range")
-                                        print("Automatically REJECT model")
+                                        if ifVerbose:
+                                                print("!!! Outside channel " +
+                                                      "length range")
+                                                print("Automatically REJECT " +
+                                                      "model")
                                         WARN_BOUNDS = True
                                 else:
                                         x = tremor.TremorModel(depth=boss0*1.e3,
@@ -530,8 +525,8 @@ for run in range(numrun):
 
                         # Change viscosity
                         if pDRAW == 1:
-
-                                print(DRAW[pDRAW])
+                                if ifVerbose:
+                                        print(DRAW[pDRAW])
 
                                 if k < BURN:
                                         theta = thetaETA_burn
@@ -542,17 +537,20 @@ for run in range(numrun):
 
                                 newETA = x.eta[0] * wETA
                                 ETAdiff = newETA - x.eta[0]
-
-                                print('Perturb viscosity by ' + str(ETAdiff)
-                                      + ' Pa s')
+                                
+                                if ifVerbose:
+                                        print('Perturb viscosity by ' +
+                                              str(ETAdiff) + ' Pa s')
 
                                 # newETA = x.eta[0] + wETA
 
                                 if ((newETA < etamin) or 
                                     (newETA > etamax)):
-                                        print ("!!! Outside viscosity " +
-                                               "range\n")
-                                        print("Automatically REJECT model")
+                                        if ifVerbose:
+                                                print ("!!! Outside viscosity "
+                                                       + "range\n")
+                                                print("Automatically REJECT " +
+                                                      "model")
                                         WARN_BOUNDS = True
                                 else:
                                         x.set_eta(newETA)
@@ -562,8 +560,8 @@ for run in range(numrun):
 
                         # Change pressure ratio
                         if pDRAW == 2:
-
-                                print(DRAW[pDRAW])
+                                if ifVerbose:
+                                        print(DRAW[pDRAW])
 
                                 if k < BURN:
                                         theta = thetaPR_burn
@@ -574,15 +572,18 @@ for run in range(numrun):
                                 newPR = wPR * x.pratio
                                 PRdiff = newPR - x.pratio
 
-                                print('Perturb pressure ratio by ' +
-                                      str(PRdiff))
+                                if ifVerbose:
+                                        print('Perturb pressure ratio by ' +
+                                              str(PRdiff))
 
                                 # newPR = x.pratio + wPR
 
                                 if (newPR < prmin) or (newPR > prmax):
-                                        print("!!! Outside pressure " +
-                                              "ratio range\n")
-                                        print("Automatically REJECT model")
+                                        if ifVerbose:
+                                                print("!!! Outside pressure " +
+                                                      "ratio range\n")
+                                                print("Automatically REJECT " +
+                                                      "model")
                                         WARN_BOUNDS = True
                                 else:
                                         x = tremor.TremorModel(depth=boss0*1.e3,
@@ -593,10 +594,10 @@ for run in range(numrun):
                                         x.set_eta(oldx.eta)
 
 
-                        # Change aspect ratio	
+                        # Change aspect ratio        
                         elif pDRAW == 3:
-
-                                print(DRAW[pDRAW])
+                                if ifVerbose:
+                                        print(DRAW[pDRAW])
 
                                 if k < BURN:
                                         theta = thetaWL_burn
@@ -608,14 +609,18 @@ for run in range(numrun):
                                 newWL = x.wl * wWL
                                 WLdiff = newWL - x.wl
 
-                                print('Perturb aspect ratio by ' + str(WLdiff))
+                                if ifVerbose:
+                                        print('Perturb aspect ratio by ' +
+                                              str(WLdiff))
 
                                 # newWL = x.wl + wWL
 
                                 if (newWL < wlmin) or (newWL > wlmax):
-                                        print("!!! Outside aspect " +
-                                              "ratio range\n")
-                                        print("Automatically REJECT model")
+                                        if ifVerbose:
+                                                print("!!! Outside aspect " +
+                                                      "ratio range\n")
+                                                print("Automatically REJECT " +
+                                                      "model")
                                         WARN_BOUNDS = True
                                 else:
                                         x = tremor.TremorModel(depth=boss0*1.e3,
@@ -630,20 +635,24 @@ for run in range(numrun):
                         x.calc_f()
 
                         if x.f[0] > fmax:
-                                print("Frequency too high")
-                                print("Automatically REJECT model")
+                                if ifVerbose:
+                                        print("Frequency too high")
+                                        print("Automatically REJECT model")
                                 WARN_BOUNDS = True
                         elif (x.R[0] < minR or x.R[0] > maxR):
-                                print("R out of range")
-                                print("Automatically REJECT model")
+                                if ifVerbose:
+                                        print("R out of range")
+                                        print("Automatically REJECT model")
                                 WARN_BOUNDS = True
 
 
                         # Continue as long as proposed model is not out of 
                         # bounds:
                         if WARN_BOUNDS:
-                                print(' == ! == ! == !  REJECT NEW MODEL  ' +
-                                      '! == ! == ! ==  ')
+                                if ifVerbose:
+                                        print(' == ! == ! == ! ' +
+                                              'REJECT NEW MODEL  ' +
+                                              '! == ! == ! ==  ')
                                 del x
                                 numreject = numreject + 1
                                 drawnumreject[pDRAW] = drawnumreject[pDRAW] + 1
@@ -651,7 +660,8 @@ for run in range(numrun):
                                 # re-do iteration -- DO NOT increment (k)
 
                         # Calculate predicted data
-                        print("Running tremor model")
+                        if ifVerbose:
+                                print("Running tremor model")
                         x.generate_tremor(max_duration, tremor_dt, tremor_w0)
                         duration = x.get_durations(taper=dur_taper,
                                                    threshold=dur_threshold)
@@ -663,7 +673,8 @@ for run in range(numrun):
                         # over the calculated source duration
                         m0_total, m0_average = x.get_moments(window=duration)
                         if ifInstaseis:
-                                print("Running Instaseis modeling")
+                                if ifVerbose:
+                                        print("Running Instaseis modeling")
                                 sliprate = x.u[0]
                                 slipdt = tremor_dt
                                 M0 = m0_total[0]
@@ -713,9 +724,10 @@ for run in range(numrun):
                         x.number = k + 1
 
                         # Calculate error of the new model:
-                        print("Freq {:.4f}, Amplitude {:.3E}, Duration {:.1f}, R {:.3f}".format(x.f[0], vamp, dur_pre, x.R[0]))
-                        print("L {:.1f} eta {:.1f} pratio {:.6f} aspect {:.1f}".format(x.L, x.eta[0], x.pratio, x.wl))
-                        print("M0 {:.3E}".format(M0))
+                        if ifVerbose:
+                                print("Freq {:.4f}, Amplitude {:.3E}, Duration {:.1f}, R {:.3f}".format(x.f[0], vamp, dur_pre, x.R[0]))
+                                print("L {:.1f} eta {:.1f} pratio {:.6f} aspect {:.1f}".format(x.L, x.eta[0], x.pratio, x.wl))
+                                print("M0 {:.3E}".format(M0))
                         misfit,newmis,PHI,x,diagCE = finderror(k,x,ndata,dpre,
                                                                dobs,misfit,
                                                                newmis,wsig,PHI,
@@ -723,10 +735,12 @@ for run in range(numrun):
                                                                weight_opt)
 
                         pac,q = accept_reject(PHI,k,pDRAW,WARN_BOUNDS)
-	
+        
                         if pac < q:
-                                print (' == ! == ! == !  REJECT NEW MODEL  ' +
-                                       '! == ! == ! ==  ')
+                                if ifVerbose:
+                                        print (' == ! == ! == !  ' +
+                                               'REJECT NEW MODEL  ' +
+                                               '! == ! == ! ==  ')
                                 del x
                                 PHI[k+1] = PHI[k]
 
@@ -734,8 +748,10 @@ for run in range(numrun):
                                 drawnumreject[pDRAW] = drawnumreject[pDRAW] + 1
                                 # re-do iteration -- DO NOT increment (k)
                         else: 
-                                print('******   ******  ACCEPT NEW MODEL  ' +
-                                      '******   ******')
+                                if ifVerbose:
+                                        print('******   ******  ' +
+                                              'ACCEPT NEW MODEL  ' +
+                                              '******   ******')
 
                                 # Retain MODEL
                                 x.reduce_size()
@@ -748,15 +764,15 @@ for run in range(numrun):
                                         print ('Adding model #' + str(k + 1) +
                                                ' to the CHAIN ensemble')
                                         CHMODS.append(x)
-					# modl = x.filename
-					# curlocation = MAIN + '/' + modl
-					# newfilename = ('M' + str(ii) + '_' + 
-					# 	       abc[run] + '_' + 
-					# 	       str(chain)+ '_' + modl)
-					# newlocation = SAVEF + '/' + newfilename
-					# shutil.copy2(curlocation, newlocation)
-					# Try to also save a binary version of the
-					# MODEL class object
+                                        # modl = x.filename
+                                        # curlocation = MAIN + '/' + modl
+                                        # newfilename = ('M' + str(ii) + '_' + 
+                                        #                abc[run] + '_' + 
+                                        #                str(chain)+ '_' + modl)
+                                        # newlocation = SAVEF + '/' + newfilename
+                                        # shutil.copy2(curlocation, newlocation)
+                                        # Try to also save a binary version of the
+                                        # MODEL class object
                                         modl = "{:06d}".format(x.number)
                                         if ifParallel:
                                                 parl = "{:04d}".format(parallelIndex)
@@ -777,36 +793,37 @@ for run in range(numrun):
                                                 pickle.dump(x, output)
                                         keep_cnt = keep_cnt + 1
 
-			        # #### Remove all models from current chain ####
-				# for filename in glob(MAIN+"/*.swm"):
-				# 	os.remove(filename) 
-				# for filename in glob(MAIN+"/*.tvel"):
-				# 	os.remove(filename) 
-				# for filename in glob(MAIN+"/*.npz"):
-				# 	os.remove(filename) 
-				
-			        # move to next iteration
+                                # #### Remove all models from current chain ####
+                                # for filename in glob(MAIN+"/*.swm"):
+                                #         os.remove(filename) 
+                                # for filename in glob(MAIN+"/*.tvel"):
+                                #         os.remove(filename) 
+                                # for filename in glob(MAIN+"/*.npz"):
+                                #         os.remove(filename) 
+                                
+                                # move to next iteration
                                 
                                 k = k + 1
                                 
-	
-		# Calculate the acceptance rate for the chain:
+        
+                # Calculate the acceptance rate for the chain:
                 numgen = numreject + numaccept
                 drawnumgen = drawnumreject + drawnumaccept
                 acc_rate[chain] = (numaccept/numgen)*100
                 draw_acc_rate[:,chain] = (drawnumaccept[:]/drawnumgen[:])*100.0
-                print(draw_acc_rate)
+                # print(draw_acc_rate)
 
                 """
-		if errorflag1 == 'on':
-			print " "
-			print " error occurred on first model generation, "
-			print " no disp.out file found, try to re-do start of chain "
-			print " "
-			errorflag1 = 'off'
-		else:
+                if errorflag1 == 'on':
+                        print " "
+                        print " error occurred on first model generation, "
+                        print " no disp.out file found, try to re-do start of chain "
+                        print " "
+                        errorflag1 = 'off'
+                else:
                 """
-                print(PHI)
+                if ifVerbose:
+                        print(PHI)
                 inumm = numm + 0.0
                 cc = ([plt.cm.brg(columnno/inumm) 
                        for columnno in range(numm)])
@@ -819,33 +836,33 @@ for run in range(numrun):
                 # # Keep every Mth model from the chain
                 # ii = BURN - 1
                 # while (ii < numm):
-                # 	sample = copy.deepcopy(ITMODS[ii])
-                # 	print ('Adding model #  [ '+str(sample.number)+
-                # 	       ' ]  to the CHAIN ensemble')
-                # 	CHMODS.append(sample)
-                # 	modl = sample.filename
-                # 	curlocation = MAIN + '/' + modl
-                # 	newfilename = ('M'+str(ii)+'_'+abc[run]+ '_' 
-                # 		       + str(chain)+ '_' + modl)
-                # 	newlocation = SAVEF + '/' + newfilename
-                # 	shutil.copy2(curlocation, newlocation)
-                # 	# Try to also save a binary version of the
-                # 	# MODEL class object
-                # 	classOutName = ('M' + str(ii) + '_' + abc[run] +
-                # 			'_' + str(chain) + '_' + modl +
-                # 			'.pkl')
-                # 	newlocation = SAVEF + '/' + classOutName
-                # 	with open(newlocation, 'wb') as output:
-                # 		pickle.dump(sample, output, -1)
-                # 	ii = ii + M
+                #         sample = copy.deepcopy(ITMODS[ii])
+                #         print ('Adding model #  [ '+str(sample.number)+
+                #                ' ]  to the CHAIN ensemble')
+                #         CHMODS.append(sample)
+                #         modl = sample.filename
+                #         curlocation = MAIN + '/' + modl
+                #         newfilename = ('M'+str(ii)+'_'+abc[run]+ '_' 
+                #                        + str(chain)+ '_' + modl)
+                #         newlocation = SAVEF + '/' + newfilename
+                #         shutil.copy2(curlocation, newlocation)
+                #         # Try to also save a binary version of the
+                #         # MODEL class object
+                #         classOutName = ('M' + str(ii) + '_' + abc[run] +
+                #                         '_' + str(chain) + '_' + modl +
+                #                         '.pkl')
+                #         newlocation = SAVEF + '/' + classOutName
+                #         with open(newlocation, 'wb') as output:
+                #                 pickle.dump(sample, output, -1)
+                #         ii = ii + M
 
                 # #### Remove all models from current chain ####
                 # for filename in glob(MAIN+"/*.swm"):
-                # 	os.remove(filename) 
+                #         os.remove(filename) 
                 # for filename in glob(MAIN+"/*.tvel"):
-                # 	os.remove(filename) 
+                #         os.remove(filename) 
                 # for filename in glob(MAIN+"/*.npz"):
-                # 	os.remove(filename) 
+                #         os.remove(filename) 
 
                 #### Plot the error at each iterations ####
                 errorfig(PHI, BURN, chain, abc, run, SAVEF)
@@ -853,24 +870,24 @@ for run in range(numrun):
                 # # Keep lowest error models from posterior distribution
                 # realmin = np.argsort(PHI)
                 # jj=0
-                # while (jj < keep):				
-                # 	ind=realmin[jj]
-                # 	sample = copy.deepcopy(ITMODS[ind])
-                # 	BEST_CHMODS.append(sample)
-                # 	jj = jj + 1	
+                # while (jj < keep):                                
+                #         ind=realmin[jj]
+                #         sample = copy.deepcopy(ITMODS[ind])
+                #         BEST_CHMODS.append(sample)
+                #         jj = jj + 1        
 
                 #### Advance to next chain ####
                 chain = chain + 1
-	
+        
 
-	#### Plot acceptance rate ####
+        #### Plot acceptance rate ####
         accratefig(totch, acc_rate, draw_acc_rate, abc, run, SAVEF)
         
         keptPHI = []
-        nummods = len(CHMODS)		
-	# INTF=[]	
-	# NM=[]	
-	# SIGH=[]
+        nummods = len(CHMODS)                
+        # INTF=[]        
+        # NM=[]        
+        # SIGH=[]
         LENGTH = []
         ETA = []
         WL = []
@@ -879,125 +896,125 @@ for run in range(numrun):
         while (jj < nummods):
                 sample = copy.deepcopy(CHMODS[jj])
                 RUNMODS.append(sample)
-		
+                
                 curPHI = sample.PHI
                 keptPHI = np.append(keptPHI, curPHI)
-		
-		# newcol = 1000*(sample.intf)
-		# newcol = np.array(sample.mantleR)
-		# INTF = np.append(INTF, newcol)	
-		# newnm = sample.nmantle
-		# NM = np.append(NM, newnm)	
-		# newsighyp = sample.sighyp
+                
+                # newcol = 1000*(sample.intf)
+                # newcol = np.array(sample.mantleR)
+                # INTF = np.append(INTF, newcol)        
+                # newnm = sample.nmantle
+                # NM = np.append(NM, newnm)        
+                # newsighyp = sample.sighyp
                 LENGTH = np.append(LENGTH, sample.L)
                 ETA = np.append(ETA, sample.eta[0])
                 WL = np.append(WL, sample.wl)
                 PR = np.append(PR, sample.pratio)
-		# if (jj == 0):
-		# 	SIGH = copy.deepcopy(newsighyp)
-		# else:
-		# 	SIGH=np.vstack((SIGH, newsighyp))
+                # if (jj == 0):
+                #         SIGH = copy.deepcopy(newsighyp)
+                # else:
+                #         SIGH=np.vstack((SIGH, newsighyp))
                 jj = jj + 1
-		
-	# runINTF = np.append(runINTF, INTF)
-	# runNM = np.append(runNM, NM)
-	# if (run == 0):
-	# 	runSIGH = copy.deepcopy(SIGH)
-	# else:
-	# 	runSIGH = np.vstack((runSIGH, SIGH))
+                
+        # runINTF = np.append(runINTF, INTF)
+        # runNM = np.append(runNM, NM)
+        # if (run == 0):
+        #         runSIGH = copy.deepcopy(SIGH)
+        # else:
+        #         runSIGH = np.vstack((runSIGH, SIGH))
         runPHI = np.append(runPHI, keptPHI)
         runLENGTH = np.append(runLENGTH, LENGTH)
         runETA = np.append(runETA, ETA)
         runWL = np.append(runWL, WL)
         runPR = np.append(runPR, PR)
-	
+        
         PHIind = np.argsort(keptPHI)
         Ult_ind = PHIind[0]
         revPHIind = PHIind[::-1]
         
-        """			
-	#### Plot histogram of the number of layers ####		
-	nlhist(rep_cnt,repeat, NM, nmin, nmax, maxz_m, abc, run, SAVEF)
-	
-	#### Plot histogram of the hyperparameter SIGH ####
-	sighhist(rep_cnt,repeat, SIGH, hypmin, hypmax, maxz_m, abc, run, SAVEF)
-	
-	# Specify colormap for plots
-	chosenmap='brg_r'	
-	
-	# ==================== PLOT [1] ==================== 
-	# ================ Velocity Models =================
-	CS3,scalarMap=modfig(rep_cnt,repeat,keptPHI,vmin,vmax,chosenmap,
-			     nummods,revPHIind,CHMODS,Ult_ind,maxz_m,abc,run,
-			     SAVEF)
-	
-	# ==================== PLOT [2] ==================== 
-	# =========== Dispersion Curve Vertical ============
-	vdispfig(rep_cnt,repeat,nummods,revPHIind,keptPHI,CHMODS,scalarMap,
-		 dobs_sw,cp,Ult_ind,weight_opt,wsig,cpmin,cpmax,vmin,vmax,CS3,
-		 maxz_m,abc,run,SAVEF)
-	
-	# ==================== PLOT [3] ==================== 
-	# ========== Dispersion Curve Horizontal ===========
-	# hdispfig(rep_cnt,repeat,nummods,revPHIind,keptPHI,CHMODS,scalarMap,
-	# 	 dobs,instpd,Ult_ind,weight_opt,wsig,pmin,pmax,vmin,vmax,CS3,
-	# 	 maxz_m,abc,run,SAVEF)
-	
-	#### Plot histogram of ALL interface depths ####
-	# intffig(rep_cnt,repeat,INTF,maxz_m,abc,run,SAVEF)
+        """                        
+        #### Plot histogram of the number of layers ####                
+        nlhist(rep_cnt,repeat, NM, nmin, nmax, maxz_m, abc, run, SAVEF)
+        
+        #### Plot histogram of the hyperparameter SIGH ####
+        sighhist(rep_cnt,repeat, SIGH, hypmin, hypmax, maxz_m, abc, run, SAVEF)
+        
+        # Specify colormap for plots
+        chosenmap='brg_r'        
+        
+        # ==================== PLOT [1] ==================== 
+        # ================ Velocity Models =================
+        CS3,scalarMap=modfig(rep_cnt,repeat,keptPHI,vmin,vmax,chosenmap,
+                             nummods,revPHIind,CHMODS,Ult_ind,maxz_m,abc,run,
+                             SAVEF)
+        
+        # ==================== PLOT [2] ==================== 
+        # =========== Dispersion Curve Vertical ============
+        vdispfig(rep_cnt,repeat,nummods,revPHIind,keptPHI,CHMODS,scalarMap,
+                 dobs_sw,cp,Ult_ind,weight_opt,wsig,cpmin,cpmax,vmin,vmax,CS3,
+                 maxz_m,abc,run,SAVEF)
+        
+        # ==================== PLOT [3] ==================== 
+        # ========== Dispersion Curve Horizontal ===========
+        # hdispfig(rep_cnt,repeat,nummods,revPHIind,keptPHI,CHMODS,scalarMap,
+        #          dobs,instpd,Ult_ind,weight_opt,wsig,pmin,pmax,vmin,vmax,CS3,
+        #          maxz_m,abc,run,SAVEF)
+        
+        #### Plot histogram of ALL interface depths ####
+        # intffig(rep_cnt,repeat,INTF,maxz_m,abc,run,SAVEF)
 
-	# = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # 
-	# = # = # = # = # = # PROBABILITY DENSITY FUNCTIONS # = # = # = # = # = # = # 
-	# = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # 
-	#vh,maxline,maxlineDISP,newpin,newzin,newvin,cutpin,newvinD,normvh,normph=pdfdiscrtze(maxz_m,vmax,instpd,nummods,CHMODS,pdf_connect,pmin,pmax)
-	
-	#### Create the pdf figures for disperions curves and models ####
-	#setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax)
-	
-	if rep_cnt == (repeat - 1):
-		rnummods = len(RUNMODS)		
-				
-		#### Plot histogram of the number of layers ####		
-		nlhist(rep_cnt,repeat,runNM, nmin, nmax, maxz_m, abc, run, 
-		       SAVEF)
-	
-		#### Plot histogram of the hyperparameter SIGH ####
-		sighhist(rep_cnt,repeat,runSIGH, hypmin, hypmax, maxz_m, abc, 
-			 run, SAVEF)
-	
-		runPHIind = np.argsort(runPHI)
-		rUlt_ind = runPHIind[0]
-		revrunind = runPHIind[::-1]
-	
-		# ==================== PLOT [1] ==================== 
-		# ================ Velocity Models =================
-		CS3,scalarMap=modfig(rep_cnt,repeat,runPHI,vmin,vmax,chosenmap,
-				     rnummods,revrunind,RUNMODS,rUlt_ind,
-				     maxz_m,abc,run,SAVEF)
+        # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # 
+        # = # = # = # = # = # PROBABILITY DENSITY FUNCTIONS # = # = # = # = # = # = # 
+        # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # 
+        #vh,maxline,maxlineDISP,newpin,newzin,newvin,cutpin,newvinD,normvh,normph=pdfdiscrtze(maxz_m,vmax,instpd,nummods,CHMODS,pdf_connect,pmin,pmax)
+        
+        #### Create the pdf figures for disperions curves and models ####
+        #setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax)
+        
+        if rep_cnt == (repeat - 1):
+                rnummods = len(RUNMODS)                
+                                
+                #### Plot histogram of the number of layers ####                
+                nlhist(rep_cnt,repeat,runNM, nmin, nmax, maxz_m, abc, run, 
+                       SAVEF)
+        
+                #### Plot histogram of the hyperparameter SIGH ####
+                sighhist(rep_cnt,repeat,runSIGH, hypmin, hypmax, maxz_m, abc, 
+                         run, SAVEF)
+        
+                runPHIind = np.argsort(runPHI)
+                rUlt_ind = runPHIind[0]
+                revrunind = runPHIind[::-1]
+        
+                # ==================== PLOT [1] ==================== 
+                # ================ Velocity Models =================
+                CS3,scalarMap=modfig(rep_cnt,repeat,runPHI,vmin,vmax,chosenmap,
+                                     rnummods,revrunind,RUNMODS,rUlt_ind,
+                                     maxz_m,abc,run,SAVEF)
                      
-		# ==================== PLOT [2] ==================== 
-		# =========== Dispersion Curve Vertical ============
-		vdispfig(rep_cnt,repeat,rnummods,revrunind,runPHI,RUNMODS,
-			 scalarMap,dobs_sw,cp,rUlt_ind,weight_opt,wsig,cpmin,
-			 cpmax,vmin,vmax,CS3,maxz_m,abc,run,SAVEF)
+                # ==================== PLOT [2] ==================== 
+                # =========== Dispersion Curve Vertical ============
+                vdispfig(rep_cnt,repeat,rnummods,revrunind,runPHI,RUNMODS,
+                         scalarMap,dobs_sw,cp,rUlt_ind,weight_opt,wsig,cpmin,
+                         cpmax,vmin,vmax,CS3,maxz_m,abc,run,SAVEF)
 
-		# ==================== PLOT [3] ==================== 
-		# ========== Dispersion Curve Horizontal ===========
-		# hdispfig(rep_cnt,repeat,rnummods,revrunind,runPHI,RUNMODS,
-		# 	 scalarMap,dobs,instpd,rUlt_ind,weight_opt,wsig,pmin,
-		# 	 pmax,vmin,vmax,CS3,maxz_m,abc,run,SAVEF)
+                # ==================== PLOT [3] ==================== 
+                # ========== Dispersion Curve Horizontal ===========
+                # hdispfig(rep_cnt,repeat,rnummods,revrunind,runPHI,RUNMODS,
+                #          scalarMap,dobs,instpd,rUlt_ind,weight_opt,wsig,pmin,
+                #          pmax,vmin,vmax,CS3,maxz_m,abc,run,SAVEF)
 
-		#### Plot histogram of ALL interface depths ####
-		# intffig(rep_cnt,repeat,runINTF,maxz_m,abc,run,SAVEF)
+                #### Plot histogram of ALL interface depths ####
+                # intffig(rep_cnt,repeat,runINTF,maxz_m,abc,run,SAVEF)
 
-		# = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # 
-		# = # = # = # = # = # PROBABILITY DENSITY FUNCTIONS # = # = # = # = # = # = # 
-		# = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # 
-		# vh,maxline,maxlineDISP,newpin,newzin,newvin,cutpin,newvinD,normvh,normph=pdfdiscrtze(maxz_m,vmax,instpd,rnummods,RUNMODS,pdf_connect,pmin,pmax)
+                # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # 
+                # = # = # = # = # = # PROBABILITY DENSITY FUNCTIONS # = # = # = # = # = # = # 
+                # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # = # 
+                # vh,maxline,maxlineDISP,newpin,newzin,newvin,cutpin,newvinD,normvh,normph=pdfdiscrtze(maxz_m,vmax,instpd,rnummods,RUNMODS,pdf_connect,pmin,pmax)
 
-		#### Create the pdf figures for disperions curves and models ####
-		# setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax)
-"""					
+                #### Create the pdf figures for disperions curves and models ####
+                # setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax)
+"""                                        
         # rep_cnt = rep_cnt + 1
 """
 Elog.close()
