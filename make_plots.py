@@ -8,7 +8,8 @@ from tqdm import tqdm
 import tremor
 import os
 import string
-from MCMC_functions import fhist, pdhist, amphist, Rhist
+from MCMC_functions import (fhist, pdhist, amphist, Rhist, Lhist, etahist,
+                            prhist, wlhist, pdfdiscrtze, setpdfcmaps, fluxhist)
 
 model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run1/saved_models/"
 fmin = 0.0
@@ -23,6 +24,19 @@ nabins = 25
 Rmin = 0.5
 Rmax = 1.3
 nRbins = 25
+Lmin = 1.0
+Lmax = 1000.0
+nLbins = 100
+etamin = 1.0
+etamax = 1000.0
+netabins = 100
+prmin = 1.0
+prmax = 1.2
+nprbins = 20
+wlmin = 5.0
+wlmax = 100.0
+nwlbins = 47
+
 
 model_pkls = []
 for root, dirs, files in os.walk(model_dir):
@@ -56,6 +70,9 @@ for i in range(nletters):
     for pklfile in tqdm(pkl_separate[i]):
         with open(pklfile, 'rb') as file:
             models.append(pickle.load(file))
+    nmodels = len(models)
+
+    # First plot up predicted observations
     freqs = np.array([model.f[0] for model in models])
     # print(freqs)
     fhist(model_dir, all_letters[i], fmin, fmax, nfbins, freqs)
@@ -66,3 +83,38 @@ for i in range(nletters):
     Rs = np.array([model.dpre[2] for model in models])
     Rhist(model_dir, all_letters[i], Rmin, Rmax, nRbins, Rs)
 
+    # Now do the raw model parameters
+    Ls = np.array([model.L for model in models])
+    etas = np.array([model.eta[0] for model in models])
+    prs = np.array([model.pratio for model in models])
+    wls = np.array([model.wl for model in models])
+
+    Lhist(model_dir, all_letters[i], Lmin, Lmax, nLbins, Ls)
+    etahist(model_dir, all_letters[i], etamin, etamax, netabins, etas)
+    prhist(model_dir, all_letters[i], prmin, prmax, nprbins, prs)
+    wlhist(model_dir, all_letters[i], wlmin, wlmax, nwlbins, wls)
+
+    # Add in some flux estimates
+    for model in models:
+        model.calc_flux()
+    fluxs = np.array([model.flux[0] for model in models])
+    fluxmax = np.amax(fluxs)
+    fluxmin = np.amin(fluxs)
+    nfluxbins = 50
+    fluxhist(model_dir, all_letters[i], fluxmin, fluxmax, nfluxbins, fluxs)
+    
+    # Make 2D pdf plots
+    pdfcmaps = ('GREYS', 'HOT')
+    (Lin, etain, prin, wlin, fluxin, Leta,
+     Lpr, Lwl, etapr, etawl, prwl,
+     Lflux, etaflux, prflux, wlflux,
+     normLeta, normLpr, normLwl,
+     normetapr, normetawl, normprwl, normLflux, normetaflux,
+     normprflux, normwlflux) = pdfdiscrtze(nmodels, models, Lmin, Lmax,
+                                           etamin, etamax, prmin, prmax,
+                                           wlmin, wlmax, fluxmin, fluxmax)
+    setpdfcmaps(model_dir, pdfcmaps, all_letters[i], Lin, etain, prin, wlin,
+                fluxin, normLeta, normLpr, normLwl, normetapr, normetawl,
+                normprwl, normLflux, normetaflux, normprflux, normwlflux,
+                Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin,
+                fluxmax)

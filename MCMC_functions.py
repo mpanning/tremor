@@ -7,6 +7,9 @@ import tremor
 import random
 import matplotlib.pyplot as plt
 import pylab as P
+from matplotlib.colors import LinearSegmentedColormap
+import copy
+from tqdm import tqdm
 # from numpy import inf, log, cos, array
 # from glob import glob
 # import numpy as np
@@ -71,21 +74,21 @@ def startmodel(totch, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
     return (stL, steta, stpratio, stwl)
 # ----------------------------------------------------------------------------
 #def sobs_set (k):
-#	nextmodel = k+1
-#	modl = 'modl%s.in' % nextmodel
-#	try:
-#		os.remove('sobs.d')
-#		os.remove('log.txt')
-#		os.remove('disp.out')
-#	except:
-#		pass
-#	sobs = open('sobs.d','w')
-#	sobs.write('0.005 0.005 0.0 0.005 0.0'+'\n')
-#	sobs.write('1 0 0 0 0 0 1 0 1 0'+'\n')
-#	sobs.write(modl+'\n')
-#	sobs.write('disp.d')
-#	sobs.close()
-#	return (modl)
+#    nextmodel = k+1
+#    modl = 'modl%s.in' % nextmodel
+#    try:
+#        os.remove('sobs.d')
+#        os.remove('log.txt')
+#        os.remove('disp.out')
+#    except:
+#        pass
+#    sobs = open('sobs.d','w')
+#    sobs.write('0.005 0.005 0.0 0.005 0.0'+'\n')
+#    sobs.write('1 0 0 0 0 0 1 0 1 0'+'\n')
+#    sobs.write(modl+'\n')
+#    sobs.write('disp.d')
+#    sobs.close()
+#    return (modl)
 # ----------------------------------------------------------------------------
 def finderror (k,x,ndata,dpre,dobs,misfit,newmis,wsig,PHI,diagCE,weight_opt):
     for i in range(ndata):
@@ -121,14 +124,14 @@ def finderror (k,x,ndata,dpre,dobs,misfit,newmis,wsig,PHI,diagCE,weight_opt):
         print(e_sqd)
         print('PHIold = ' + ' ' + str(PHIold) + '    ' + 'PHInew = ' + ' '
               + str(PHInew))
-    return (misfit,newmis,PHI,x,diagCE)	
+    return (misfit,newmis,PHI,x,diagCE)    
 # ----------------------------------------------------------------------------
 def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
     pi = math.pi
     if WARN_BOUNDS:
         pac = 0
     else:
-	# All current options 
+        # All current options 
         if (pDRAW >= 0) and (pDRAW <= 3):
             try:
                 misck = math.exp(-(PHI[k+1]-PHI[k])/2)
@@ -138,9 +141,9 @@ def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
                 print('PHIs: '+str(PHI[k])+', '+str(PHI[k+1]))
                 print('misck is:   '+str(misck))
             pac = mintwo(1,misck)
-			
+            
     if ifVerbose:
-        print(' ')		
+        print(' ')        
         print('pac = min[ 1 , prior ratio x likelihood ratio x proposal ' +
               'ratio ] :   ' + str(pac))
         print(' ')
@@ -156,7 +159,7 @@ def startchain(Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
     pratio = random.uniform(prmin, prmax)
     wl = random.uniform(wlmin, wlmax)
     return L, eta, pratio, wl
-# ----------------------------------------------------------------------------	
+# ----------------------------------------------------------------------------    
 # ----------------------------------------------------------------------------
 def errorfig(PHI, BURN, chain, abc, run, SAVEF):
     plt.close('all')
@@ -167,7 +170,7 @@ def errorfig(PHI, BURN, chain, abc, run, SAVEF):
     ax2 = fig.add_axes([left, bottom, width, height])
 
     ax1.plot(PHI[BURN:], color='red')
-	
+    
     #ax1.set_ylabel('E(m)', fontweight='bold', fontsize=14)
     ax1.set_ylabel(r'$\phi$(m)', fontsize=20)
     ax1.set_xlabel('Iteration',  fontweight='bold', fontsize=14)
@@ -249,601 +252,404 @@ def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
     plt.close('all')
     P.figure
     P.hist(Rs, bins= np.linspace(Rmin, Rmax, nRbins))
-    plt.xlabel(r'Amplitude (m/s$^2$)')
+    plt.xlabel(r'R value')
     plt.ylabel('Count')
     figname = dir + letter + '_Rhist.png'
     P.savefig(figname)
+# ----------------------------------------------------------------------------
+def Lhist(dir, letter, Lmin, Lmax, nLbins, Ls):
+    plt.close('all')
+    P.figure
+    P.hist(Ls, bins= np.linspace(Lmin, Lmax, nLbins))
+    plt.xlabel(r'Channel length (m)')
+    plt.ylabel('Count')
+    figname = dir + letter + '_Lhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def etahist(dir, letter, etamin, etamax, netabins, etas):
+    plt.close('all')
+    P.figure
+    P.hist(etas, bins= np.linspace(etamin, etamax, netabins))
+    plt.xlabel(r'Fluid viscosity (Pa s)')
+    plt.ylabel('Count')
+    figname = dir + letter + '_etahist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def prhist(dir, letter, prmin, prmax, nprbins, prs):
+    plt.close('all')
+    P.figure
+    P.hist(prs, bins= np.linspace(prmin, prmax, nprbins))
+    plt.xlabel(r'Driving pressure ratio')
+    plt.ylabel('Count')
+    figname = dir + letter + '_prhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def wlhist(dir, letter, wlmin, wlmax, nwlbins, wls):
+    plt.close('all')
+    P.figure
+    P.hist(wls, bins= np.linspace(wlmin, wlmax, nwlbins))
+    plt.xlabel(r'Aspect ratio')
+    plt.ylabel('Count')
+    figname = dir + letter + '_wlhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def fluxhist(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs):
+    plt.close('all')
+    P.figure
+    P.hist(fluxs, bins= np.linspace(fluxmin, fluxmax, nfluxbins))
+    plt.xlabel(r'Volume flux (m$^3$/s)')
+    plt.ylabel('Count')
+    figname = dir + letter + '_fluxhist.png'
+    P.savefig(figname)
 
     
-"""            
 # ----------------------------------------------------------------------------
-def nlhist(rep_cnt,repeat, NL, nmin, nmax, maxz_m, abc, run, SAVEF):
-	plt.close('all')
-	P.figure
-	P.hist(NL, bins=np.linspace(nmin-0.5, nmax+0.5, (nmax-nmin)+2))
-	#plt.show()
-	plt.ylabel('Count')
-	plt.xlabel('Number of Layers')
-	if rep_cnt == (repeat - 1):
-		figname = ('REP_NL_hist_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]
-                           +'.png')
-	else:
-		figname = 'NL_hist_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	figtitle = 'Number of Model Layers \n '+str(maxz_m)+' m total depth'
-	plt.title(figtitle, fontweight='bold', fontsize=14)
-	Hfig = SAVEF + '/' + figname
-	P.savefig(Hfig)
+def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin, fluxmax):
+    # Discretize L, eta, pressure and aspect ratio bins
+    Lints = 100
+    Lin = np.linspace(Lmin, Lmax, Lints)
+    etaints = 100
+    etain = np.linspace(etamin, etamax, etaints)
+    prints = 100
+    prin = np.linspace(prmin, prmax, prints)
+    wlints = 100
+    wlin = np.linspace(wlmin, wlmax, wlints)
+    fluxints = 100
+    fluxin = np.linspace(fluxmin, fluxmax, fluxints)
+    
+    # Establish 2D arrays for all comparison hit counts
+    Leta = np.zeros((Lints, etaints), dtype=np.dtype(int))
+    Lpr = np.zeros((Lints, prints), dtype=np.dtype(int))
+    Lwl = np.zeros((Lints, wlints), dtype=np.dtype(int))
+    etapr = np.zeros((etaints, prints), dtype=np.dtype(int))
+    etawl = np.zeros((etaints, wlints), dtype=np.dtype(int))
+    prwl = np.zeros((prints, wlints), dtype=np.dtype(int))
+    Lflux = np.zeros((Lints, fluxints), dtype=np.dtype(int))
+    etaflux = np.zeros((etaints, fluxints), dtype=np.dtype(int))
+    prflux = np.zeros((prints, fluxints), dtype=np.dtype(int))
+    wlflux = np.zeros((wlints, fluxints), dtype=np.dtype(int))
+
+
+    # Loop through all kept models, dealing with one model at a time
+    for cmod in tqdm(range(nummods)):    
+        sample = copy.deepcopy(CHMODS[cmod])
+        cdpre = sample.dpre
+
+        # Find indices
+        dL = Lin[1] - Lin[0]
+        iL = int((sample.L - Lmin)/dL)
+        deta = etain[1] - etain[0]
+        ieta = int((sample.eta[0] - etamin)/deta)
+        dpr = prin[1] - prin[0]
+        ipr = int((sample.pratio - prmin)/dpr)
+        dwl = wlin[1] - wlin[0]
+        iwl = int((sample.wl - wlmin)/dwl)
+        dflux = fluxin[1]-fluxin[0]
+        iflux = int((sample.flux[0] - fluxmin)/dflux)
+
+        # Increment all the 2D arrays
+        Leta[iL, ieta] += 1
+        Lpr[iL, ipr] += 1
+        Lwl[iL, iwl] += 1
+        etapr[ieta, ipr] += 1
+        etawl[ieta, iwl] += 1
+        prwl[ipr, iwl] += 1
+        Lflux[iL, iflux] += 1
+        etaflux[ieta, iflux] += 1
+        prflux[ipr, iflux] += 1
+        wlflux[iwl, iflux] += 1
+
+    # Normalize to get pdf
+    normLeta = np.array(Leta/float(nummods))
+    normLpr = np.array(Lpr/float(nummods))
+    normLwl = np.array(Lwl/float(nummods))
+    normetapr = np.array(etapr/float(nummods))
+    normetawl = np.array(etawl/float(nummods))
+    normprwl = np.array(prwl/float(nummods))
+    normLflux = np.array(Lflux/float(nummods))
+    normetaflux = np.array(etaflux/float(nummods))
+    normprflux = np.array(prflux/float(nummods))
+    normwlflux = np.array(wlflux/float(nummods))
+
+    # Return 1d and 2d arrays
+    return (Lin, etain, prin, wlin, fluxin, Leta, Lpr, Lwl, etapr, etawl, prwl,
+            Lflux, etaflux, prflux, wlflux, normLeta, normLpr, normLwl,
+            normetapr, normetawl, normprwl, normLflux, normetaflux, normprflux,
+            normwlflux)
+            
 # ----------------------------------------------------------------------------
-def sighhist(rep_cnt, repeat, SIGH, hypmin, hypmax, maxz_m, abc, run, SAVEF):
-	plt.close('all')
-	P.figure
-        nsigh = SIGH.shape[1]
-        for i in range(0, nsigh):
-            P.subplot(1, nsigh, i+1)
-            P.hist(SIGH[:,i], bins=np.linspace(hypmin[i], hypmax[i], 21))
-            if (i == 0):
-                plt.ylabel('Count')
-            labelstr = 'Hyper-parameter '+str(i)
-            plt.xlabel(labelstr)
-        if rep_cnt == (repeat - 1):
-            figname = ('REP_SIGHYP_hist_TRANSD_lay_'+str(maxz_m)+'m_'+
-                       abc[run]+'.png')
-        else:
-            figname = ('SIGHYP_hist_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]
-                       +'.png')
-        figname = 'SIGHYP_hist_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	figtitle = ('Hyper-parameter for data error \n '+str(maxz_m)+
-                    ' m total depth')
-	plt.suptitle(figtitle, fontweight='bold', fontsize=14)
-	Hfig = SAVEF + '/' + figname
-	P.savefig(Hfig)
-# ----------------------------------------------------------------------------
-def modfig(rep_cnt,repeat,keptPHI,vmin,vmax,chosenmap,nummods,revPHIind,CHMODS,
-           Ult_ind,maxz_m,abc,run,SAVEF):
-	plt.close('all')
-	minCBE=keptPHI.min()
-	maxCBE=keptPHI.max()
-	cNorm  = colors.Normalize(vmin=minCBE, vmax=maxCBE)
-	scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=chosenmap)
-	
-	# loop through all kept models plotting one at a time
-	jj=0
-	while (jj < nummods):
-		# pull out index of current BEST model
-		ind = revPHIind[jj]
-		
-		# error of current BEST model
-		moderror = keptPHI[ind]
-		
-		# retrieve color value specific to this model's error
-		colorVal= scalarMap.to_rgba(moderror)
-		
-		curmod = copy.deepcopy(CHMODS[ind])
-		
-		#pltvels = curmod.vels
-		#pltzs = 1000*(curmod.depths)
-                pltvels = np.repeat(curmod.crustVs, 2)
-                pltzs = np.array([curmod.radius, curmod.mantleR[0]])
-                pltvels = np.append(pltvels, curmod.mantleVs)
-                pltzs = np.append(pltzs, curmod.mantleR)
-                print len(pltvels), len(pltzs)
-                
-		linebest = plt.plot(pltvels, pltzs, c=colorVal, linewidth=2.0, 
-                                    zorder=3)
-		jj = jj + 1
-	
-	# Plot ultimate best model of all chains
-	curmod = copy.deepcopy(CHMODS[Ult_ind])
-	#pltvels = curmod.vels
-	#pltzs = 1000*(curmod.depths)
-        pltvels = np.repeat(curmod.crustVs, 2)
-        pltzs = np.array([curmod.radius, curmod.mantleR[0]])
-        pltvels = np.append(pltvels, curmod.mantleVs)
-        pltzs = np.append(pltzs, curmod.mantleR)
+# def setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax):
+# STILL REWORKING THIS TO USE ARRAYS TO PASS TO MAKEPDFFIG
+def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
+                normLeta, normLpr, normLwl, normetapr, normetawl, normprwl,
+                normLflux, normetaflux, normprflux, normwlflux, Lmin, Lmax,
+                etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin, fluxmax):
+    
+    totmaxhist = 50
+    itotmaxhist = totmaxhist + 0.0
+    levels = []
+    Z = []
+    name = []
+    xlabels = []
+    ylabels = []
+    normvals = []
+    ix = []
+    iy = []
 
-	ULTl, = plt.plot(pltvels, pltzs, 'k--', linewidth=4.0, 
-                         zorder=3, 
-                         label='model with lowest \n prediction error')
-	Z = [[0,0],[0,0],[0,0]]
-	levels = np.linspace(minCBE, maxCBE, 100)
-	CS3 = plt.contourf(Z, levels, cmap=chosenmap)
-	cb=plt.colorbar(CS3)
-	cb.set_label(r'$\phi$(m)', labelpad=-65)
-	#plt.axis([0, vmax, 0, maxz_m])
-        plt.axis([0, vmax, curmod.mantleR[-1], curmod.radius])
-	ax = plt.gca()
-	#ax.set_ylim(ax.get_ylim()[::-1])
-	ax.grid(True,linestyle='-',color='0.75',zorder=0)
-	plt.ylabel('depth (m)')
-	plt.xlabel('VS (km/s)')
-	plt.legend(handles=[ULTl], fontsize=10)
-	if rep_cnt == (repeat-1):
-		bestname = 'REP_M_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	else:
-		bestname = 'M_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	figtitle = ('Velocity Models \n Transdimensional, '+str(maxz_m)
-                    +' m total depth')
-	plt.title(figtitle, fontweight='bold', fontsize=14)
-	Mfig = SAVEF + '/' + bestname
-	P.savefig(Mfig)
-	print "SHOULD BE SAVING M FIGURE RIGHT NOW!!!!"
-	plt.close('all')
-	
-	return (CS3, scalarMap)
-# ----------------------------------------------------------------------------
-def vdispfig(rep_cnt,repeat,nummods,revPHIind,keptPHI,CHMODS,scalarMap,dobs_sw,
-             instpd,Ult_ind,weight_opt,wsig,pmin,pmax,vmin,vmax,CS3,maxz_m,abc,
-             run,SAVEF):
-	plt.close('all')
-        plt.figure
-        # Figure out how many events we have
-        nevts = len(dobs_sw)
-	# loop through all kept models plotting one at a time
-        # separate panel for each event
-	jj=0
-	while (jj < nummods):
-		# pull out index of current BEST model
-		ind = revPHIind[jj]
-		
-		# error of current BEST model
-		moderror = keptPHI[ind]
-		
-		curmod = copy.deepcopy(CHMODS[ind])
-		
-                # assemble dpre into dpre_sw
-                dpre_sw = []
-                dindx = 0
-                for ii in range(nevts):
-                    npts = len(dobs_sw[ii])
-                    dpre_sw.append(curmod.dpre[dindx:dindx + npts])
-                    dindx = dindx + npts
+    inmin = []
+    inmax = []
+    invals = []
+    inmin.append(Lmin)
+    inmax.append(Lmax)
+    invals.append(Lin)
+    inmin.append(etamin)
+    inmax.append(etamax)
+    invals.append(etain)
+    inmin.append(prmin)
+    inmax.append(prmax)
+    invals.append(prin)
+    inmin.append(wlmin)
+    inmax.append(wlmax)
+    invals.append(wlin)
+    inmin.append(fluxmin)
+    inmax.append(fluxmax)
+    invals.append(fluxin)
 
-                    pltdpre = dpre_sw[ii]
-		
-                    # retrieve color value specific to this model's error
-                    colorVal= scalarMap.to_rgba(moderror)
-		
-                    plt.subplot(1, nevts, ii + 1)
-                    linebest = plt.plot(pltdpre, instpd[ii], c=colorVal, 
-                                        linewidth=2.0, zorder=3)
+    # Leta
+    minv = 0
+    maxv = normLeta.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('Leta')
+    xlabels.append('L (m)')
+    ylabels.append(r'$\eta$ (Pa s)')
+    ix.append(0)
+    iy.append(1)
+    normvals.append(normLeta)
+    
 
-		jj = jj + 1
-	
-	# Plot ultimate best model of all chains
-        curmod = copy.deepcopy(CHMODS[Ult_ind])
-        dpre_sw = []
-        wsig_sw = []
-        dindx = 0
-        for ii in range(nevts):
-            npts = len(dobs_sw[ii])
-            dpre_sw.append(curmod.dpre[dindx:dindx + npts])
-            if (weight_opt == 'ON'):
-                wsig_sw.append(wsig[dindx:dindx + npts])
-            dindx = dindx + npts
+    # Lpr
+    minv = 0
+    maxv = normLpr.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('Lpr')
+    xlabels.append('L (m)')
+    ylabels.append('Driving pressure ratio')
+    ix.append(0)
+    iy.append(2)
+    normvals.append(normLpr)
 
-            pltdpre = dpre_sw[ii]
+    # Lwl
+    minv = 0
+    maxv = normLwl.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('Lwl')
+    xlabels.append('L (m)')
+    ylabels.append('Aspect ratio')
+    ix.append(0)
+    iy.append(3)
+    normvals.append(normLwl)
 
-            plt.subplot(1, nevts, ii + 1)
-            ULTl, = plt.plot(pltdpre, instpd[ii], 'k--', linewidth=4.0, 
-                             zorder=3, label=('best fit'))
-            if (ii == nevts - 1):
-                cb=plt.colorbar(CS3)
-                cb.set_label(r'$\phi$(m)', labelpad=-65)
-            plt.xlabel('Group time (s)')
-            if (ii == 0):
-                plt.ylabel('Period (s)')
-            ymin = 0.85*dobs_sw[ii].min()
-            ymax = 1.15*dobs_sw[ii].max()
-            plt.axis([ymin, ymax, pmin, pmax])
-            ax = plt.gca()
-            # ax.set_ylim(ax.get_ylim()[::-1])
-            plt.grid(True,linestyle='-',color='0.75',zorder=0)
-            obs, = plt.plot(dobs_sw[ii], instpd[ii], 'ko', zorder=10, 
-                            markersize=7, 
-                            label='obs')
-            if weight_opt == 'ON':                
-	        obserr = plt.errorbar(dobs_sw[ii], instpd[ii], 
-                                      xerr=wsig_sw[ii], zorder=20, 
-                                      linestyle="None", linewidth=2.0, 
-                                      ecolor='k')
+    # etapr
+    minv = 0
+    maxv = normetapr.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('etapr')
+    xlabels.append(r'$\eta$ (Pa s)')
+    ylabels.append('Driving pressure ratio')
+    ix.append(1)
+    iy.append(2)
+    normvals.append(normetapr)
 
-	plt.legend(handles=[ULTl, obs], fontsize=10, loc='upper right')
-	if rep_cnt == (repeat-1):	
-		bestname = 'REP_D_Vert_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	else:
-		bestname = 'D_Vert_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	figtitle = 'Group Velocity Dispersion \n Transdimensional, '+str(maxz_m)+' m total depth'
-	plt.suptitle(figtitle, fontweight='bold', fontsize=14)
-	Dfig = SAVEF + '/' + bestname
-	P.savefig(Dfig)
-	print "SHOULD BE SAVING D Vert FIGURE RIGHT NOW!!!!"
+    # etawl
+    minv = 0
+    maxv = normetawl.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('etawl')
+    xlabels.append(r'$\eta$ (Pa s)')
+    ylabels.append('Aspect ratio')
+    ix.append(1)
+    iy.append(3)
+    normvals.append(normetawl)
 
-# ----------------------------------------------------------------------------
-def hdispfig(rep_cnt,repeat,nummods,revPHIind,keptPHI,CHMODS,scalarMap,dobs,instpd,Ult_ind,weight_opt,wsig,pmin,pmax,vmin,vmax,CS3,maxz_m,abc,run,SAVEF):
-	plt.close('all')
-	# loop through all kept models plotting one at a time
-	jj=0
-	while (jj < nummods):
-		# pull out index of current BEST model
-		ind = revPHIind[jj]
-		
-		# error of current BEST model
-		moderror = keptPHI[ind]
-		
-		curmod = copy.deepcopy(CHMODS[ind])
-		
-		pltdpre = curmod.dpre
-		
-		# retrieve color value specific to this model's error
-		colorVal= scalarMap.to_rgba(moderror)
-		
-		linebest = plt.plot(instpd, pltdpre, c=colorVal, linewidth=2.0, zorder=3)
-		jj = jj + 1
-	
-	# Plot ultimate best model of all chains
-	curmod = copy.deepcopy(CHMODS[Ult_ind])
-	pltdpre = curmod.dpre
-	ULTl, = plt.plot(instpd, pltdpre, 'k--', linewidth=4.0, 
-					zorder=3, label='model with lowest \n prediction error')
-	cb=plt.colorbar(CS3)
-	cb.set_label(r'$\phi$(m)', labelpad=-65)
-	plt.ylabel('VS (km/s)')
-	plt.xlabel('Period (s)')
-	plt.axis([pmin, pmax, vmin, vmax])
-	plt.grid(True,linestyle='-',color='0.75',zorder=0)
-	obs, = plt.plot(instpd, dobs, 'ko', zorder=10, markersize=7, 
-					label='measured group velocities')
-	if weight_opt == 'ON':
-		obserr = plt.errorbar(instpd, dobs, yerr=wsig, zorder=20, linestyle="None", linewidth=2.0, ecolor='k')
-	plt.legend(handles=[ULTl, obs], fontsize=10)
-	if rep_cnt == (repeat-1):	
-		bestname = 'REP_D_Horz_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	else:
-		bestname = 'D_Horz_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	figtitle = 'Group Velocity Dispersion \n Transdimensional, '+str(maxz_m)+' m total depth'
-	plt.title(figtitle, fontweight='bold', fontsize=14)
-	Dfig = SAVEF + '/' + bestname
-	P.savefig(Dfig)
-	print "SHOULD BE SAVING D Horz FIGURE RIGHT NOW!!!!"
-# ----------------------------------------------------------------------------
-def intffig(rep_cnt,repeat,INTF,maxz_m,abc,run,SAVEF):
-	plt.close('all')
-	# Determine number of bins based on total depth
-	tmp_I=1000*INTF
-	nbins = (maxz_m)/10.0
-	histI, bin_edges = np.histogram(tmp_I, bins=np.linspace(0, maxz_m, (nbins+1)), density=True)
-	temp=len(histI)
-	pltzs = np.linspace(5, (maxz_m-5), temp)
-	plt.plot(histI,pltzs)
-	P.gca().invert_yaxis()
-	P.ylabel('Depth (m)')
-	P.xlabel('Interface Probability')
-	P.title('Histogram of Interface Depths')
-	if rep_cnt == (repeat - 1):
-		bestname = SAVEF +'/'+'REP_HIST_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	else:
-		bestname = SAVEF +'/'+'HIST_TRANSD_lay_'+str(maxz_m)+'m_'+abc[run]+'.png'
-	P.savefig(bestname)
-# ----------------------------------------------------------------------------
-def pdfdiscrtze(maxz_m,vmax,instpd,nummods,CHMODS,pdf_connect,pmin,pmax):
-	# Discretize depth range, velocity range, and period range
-	#zints=maxz/0.001
-	zints=maxz_m/5
-	zin=np.linspace(0,maxz_m,zints+1)
-	newzin=zin[0:zints]
-	
-	# Discretize velocities more coarsely for the dispersion pdf
-	vints=vmax/0.05
-	vintsD=vmax/0.01
-	vin=np.linspace(0,vmax,vints+1)
-	vinD=np.linspace(0,vmax,vintsD+1)
-	newvin=vin[0:vints]
-	newvinD=vinD[0:vintsD]
-	
-	pints=200
-	pin=np.linspace(pmin,pmax,pints+1)
-	newpin=pin[0:pints]
-	
-	# Find the indices within newpin that correspond to the discretized value closest
-	# to the highest and lowest instantaneous period of the measurements
-	pstart_ind, pstart_value = min(enumerate(newpin), key=lambda x: abs(x[1]-instpd[0]))
-	pend_ind, pend_value = min(enumerate(newpin), key=lambda x: abs(x[1]-instpd[-1]))
-	
-	# Cut the discretized array of periods down to only those occupied by the data
-	cutpin=newpin[pstart_ind:(pend_ind+1)]
-	intpnum = len(cutpin)
-	
-	# The vh array will be the 2D array of hit counts for velocities with depth
-	vh=np.zeros((zints,vints))
+    # prwl
+    minv = 0
+    maxv = normprwl.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('prwl')
+    xlabels.append('Driving pressure ratio')
+    ylabels.append('Aspect ratio')
+    ix.append(2)
+    iy.append(3)
+    normvals.append(normprwl)
 
-	# The ph array will be the 2D array of hit counts for velocities with period
-	# The ph array will still cover the full range of periods, but only the cut
-	# period range occupied by the data will be interpolated and counted toward
-	# the pdf
-	ph=np.zeros((vintsD,pints))
+    # Lflux
+    minv = 0
+    maxv = normLflux.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('Lflux')
+    xlabels.append('L (m)')
+    ylabels.append(r'Volume flux (m$^3$/s)')
+    ix.append(0)
+    iy.append(4)
+    normvals.append(normLflux)
+    
+    # etaflux
+    minv = 0
+    maxv = normetaflux.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('etaflux')
+    xlabels.append(r'$\eta$ (Pa s)')
+    ylabels.append(r'Volume flux (m$^3$/s)')
+    ix.append(1)
+    iy.append(4)
+    normvals.append(normetaflux)
+    
+    # prflux
+    minv = 0
+    maxv = normprflux.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('prflux')
+    xlabels.append('Driving pressure ratio')
+    ylabels.append(r'Volume flux (m$^3$/s)')
+    ix.append(2)
+    iy.append(4)
+    normvals.append(normprflux)
+    
+    # wlflux
+    minv = 0
+    maxv = normwlflux.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('wlflux')
+    xlabels.append('Aspect ratio')
+    ylabels.append(r'Volume flux (m$^3$/s)')
+    ix.append(3)
+    iy.append(4)
+    normvals.append(normwlflux)
+    
 
-	# Loop through all kept models, dealing with one model at a time
-	cmod = 0
-	while (cmod < nummods):
-		sample = copy.deepcopy(CHMODS[cmod])
-		cdpre = sample.dpre
-			
-		# ---------- DISPERSION CURVE INTERPOLATION + COUNTS -------------
-		intpDISP = np.interp(cutpin, instpd, cdpre)
-		
-		# Loop through all discretized period values
-		i = pstart_ind
-		ii = 0
-		while (i < (pend_ind+1)):
-			curvel = intpDISP[ii]
-			# Loop through velocity indices until the proper one is found
-			g = 0
-			while (g < vintsD):
-				# get values of current and next velocity increment
-				upvel = vinD[g+1]
-				lovel = vinD[g]
-				#print 'upvel = ' + str(upvel) + '   lovel = ' + str(lovel)
-		
-				# if the velocity in the current layer falls between the current
-				# velocity increment and the next one, add a count to the current
-				# velocity increment
-				if (curvel < upvel) and (curvel > lovel):
-					#print str(lovel) + ' < ' + str(curvel) + ' < ' + str(upvel)
-					ph[g,i] = ph[g,i] + 1
-					
-					# The velocity bin was found so no need going through rest
-					g = vintsD
-				
-				# Move to next velocity bin
-				g = g + 1
-				
-			# Move to next period bin
-			ii = ii + 1
-			i = i + 1
-		
-		# ---------- VELOCITY MODEL COUNTS -------------
+    for cmap in pdfcmap:
+        cmap2 = []
+        CS = []
+        linopt = []
+        for i, level in enumerate(levels):
+            if cmap == 'GREYS':
+                CCC = [plt.cm.Greys(chosen/itotmaxhist)
+                       for chosen in range(totmaxhist)]
+                cmap2.append(LinearSegmentedColormap.from_list('Greys', CCC,
+                                                               N=totmaxhist,
+                                                               gamma=1.0))
+                CS.append(plt.contourf(Z[i], level, cmap=cmap2[i]))
+                linopt.append(['r-.','r--','black','ko'])
+            
+            elif cmap == 'GREYS_rev':
+                CCC1 = [plt.cm.Greys(chosen/itotmaxhist)
+                        for chosen in range(totmaxhist)]
+                CCC=CCC1[::-1]
+                cmap2.append(LinearSegmentedColormap.from_list('Greys', CCC,
+                                                               N=totmaxhist,
+                                                               gamma=1.0))
+                CS.append(plt.contourf(Z[i], level, cmap=cmap2[i]))
+                linopt.append(['r-.','r--','black','wo'])
 
-		cnl = sample.nl
-		
-		# starting at the surface so flag for bottom layer is initially off
-		bottomflag = 'off'
-	
-		# Loop through all layers of current model, starting at the surface boundary
-		i = 0
-		prevbound = 0
-		while (i < cnl):
-			# if current layer is the bottom layer, set the lower boundary to be the 
-			# max depth of the model space and turn on the flag
-			if (i == (cnl-1)):
-				bound = maxz_m
-				bottomflag = 'on'
-			# if current layer is NOT the bottom layer, then make the boundary as the 
-			# next interface between this layer and the next one. Also pull out what 
-			# the velocity value is in the next layer
-			else:
-				bound = 1000*(sample.intf[i])
-				nextvel = sample.vs[i+1]
-			# Pull out the velocity of the current layer
-			curvel = sample.vs[i]
-			#curvel = reprunsVS[i,ind]
-		
-			# If we are no longer at the surface working our way down, then we only 
-			# want to loop through the depth range or the current layer, so find the
-			# index value of the previous interface/boundary to use as starting point
-			if (prevbound != 0):
-				ii=0
-				while (ii < zints):
-					testii = zin[ii]
-					if (testii > prevbound):
-						zcnt = ii
-						ii = zints
-					ii = ii + 1
-			else:
-				zcnt = 0
-		
-			# starting at the depth for the top of the current layer, loop through
-			# depth increments counting up model hit points until we reach the current
-			# boundary/interface
-			k = zin[zcnt] 
-		
-			# once the index for the current layer's velocity is found, no sense in
-			# finding it in every loop through so use a flag:
-			vindexflag = 'off'
-			while (k < bound):
-				# First we need to find the index value to place the counts for the 
-				# current layer's velocity
-				if (vindexflag == 'off'):
-					# Loop through velocity indices until the proper one is found
-					g = 0
-					while (g < vints):
-						# get values of current and next velocity increment
-						upvel = vin[g+1]
-						lovel = vin[g]
-						#print 'upvel = ' + str(upvel) + '   lovel = ' + str(lovel)
-					
-						# if the velocity in the current layer falls between the current
-						# velocity increment and the next one, add a count to the current
-						# velocity increment and store the index as a variable
-						if (curvel < upvel) and (curvel > lovel):
-							#print str(lovel) + ' < ' + str(curvel) + ' < ' + str(upvel)
-							vh[zcnt,g] = vh[zcnt,g] + 1
-							vindex = g
-						
-							# the index was found so turn on the flag and force break
-							# out of this loop by raising the counter (g) to the limit
-							vindexflag = 'on'
-							g = vints
-						g = g + 1
-				# while looping through depth increments within the current layer, add
-				# counts to each at the velocity of the layer using stored index 
-				else:
-					vh[zcnt,vindex] = vh[zcnt,vindex] + 1
-			
-				# store the depth increment for use when reach end of current layer
-				zindex = zcnt	
-			
-				zcnt = zcnt + 1
-				k = zin[zcnt]	
-		
-			if (pdf_connect == 'on'):
-				# As long as we are not in the bottom layer, then can add "dummy" points
-				# to connect current layer and the next one	at the interface
-				if (bottomflag == 'off'):
-					# loop through velocity increments, starting at the index of the 
-					# current layer's velocity. But first need to establish if have 
-					# velocity DROP or velocity JUMP:
-			
-					# For velocity jump:
-					if (curvel < nextvel):
-						gg = vindex + 1
-						while (gg < vints):
-							curvel2 = vin[gg]
-							# as long as the value of the current velocity index is belo
-							if (curvel2 < nextvel):
-								vh[zindex,gg] = vh[zindex,gg] + 1
-							gg = gg + 1	
-					
-					# For velocity drop:
-					elif (curvel > nextvel):
-						gg = vindex - 1
-						while (gg > 0):
-							curvel2 = vin[gg]
-							# as long as the value of the current velocity index is belo
-							if (curvel2 > nextvel):
-								vh[zindex,gg] = vh[zindex,gg] + 1
-							gg = gg - 1	
-		
-			# before moving to the next layer, set the previous boundary variable 
-			# equal to the current boundary
-			prevbound = bound
-		
-			i = i + 1
-		cmod = cmod + 1
+            elif cmap == 'HOT':
+                CCC = [plt.cm.hot(chosen/itotmaxhist)
+                       for chosen in range(totmaxhist)]
+                cmap2.append(LinearSegmentedColormap.from_list('HOT', CCC,
+                                                               N=totmaxhist,
+                                                               gamma=1.0))
+                CS.append(plt.contourf(Z[i], level, cmap=cmap2[i]))
+                linopt.append(['w-.','w--','black','wo'])
 
-	normvh=np.zeros((zints,vints))
-	maxline=np.zeros(zints)
-	i=0
-	while (i < zints):
-		sum_nonnorm=sum(vh[i,:])
-		normvh[i,:]=vh[i,:]/sum_nonnorm
-		max_index, max_value = max(enumerate(normvh[i,:]), key=operator.itemgetter(1))
-		maxline[i] = newvin[max_index]
-		i = i + 1
-	normph=np.zeros((vintsD,pints))
-	maxlineDISP=np.zeros(intpnum)
-	i=pstart_ind
-	ii=0
-	while (i < (pend_ind+1)):
-		sum_nonnorm=sum(ph[:,i])
-		normph[:,i]=ph[:,i]/sum_nonnorm
-		max_index, max_value = max(enumerate(normph[:,i]), key=operator.itemgetter(1))
-		maxlineDISP[ii]=newvinD[max_index]
-		ii=ii+1
-		i = i + 1
-	return (vh, maxline, maxlineDISP, newpin, newzin, newvin, cutpin, newvinD, normvh, normph)
-# ----------------------------------------------------------------------------
-def setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax):
-	
-	totmaxhist=50
-	itotmaxhist = totmaxhist + 0.0
-	minH=0
-	maxH=normvh.max()
-	levels2 = np.linspace(minH, maxH, totmaxhist+1)
-	Z2 = [[0,0],[0,0],[0,0]]
-	maxDH=normph.max()
-	levels22 = np.linspace(minH, maxDH, totmaxhist+1)
-	
-	ncmap=len(pdfcmap)
-	i=0
-	while (i < ncmap):
-		curcmap=pdfcmap[i]
-		
-		if curcmap == 'GREYS':
-			CCC = [plt.cm.Greys(chosen/itotmaxhist) for chosen in range(totmaxhist)]
-			cmap2=LinearSegmentedColormap.from_list('Greys', CCC, N=totmaxhist, gamma=1.0)
-			CS33 = plt.contourf(Z2, levels2, cmap=cmap2)
-			CS22 = plt.contourf(Z2, levels22, cmap=cmap2)
-			linopt=['r-.','r--','black','ko']
-			
-		elif curcmap == 'GREYS_rev':
-			CCC1 = [plt.cm.Greys(chosen/itotmaxhist) for chosen in range(totmaxhist)]
-			CCC=CCC1[::-1]
-			cmap2=LinearSegmentedColormap.from_list('Greys', CCC, N=totmaxhist, gamma=1.0)
-			CS33 = plt.contourf(Z2, levels2, cmap=cmap2)
-			CS22 = plt.contourf(Z2, levels22, cmap=cmap2)
-			linopt=['r-.','r--','black','wo']
-			
-		elif curcmap == 'HOT':
-			CCC = [plt.cm.hot(chosen/itotmaxhist) for chosen in range(totmaxhist)]
-			cmap2=LinearSegmentedColormap.from_list('HOT', CCC, N=totmaxhist, gamma=1.0)
-			CS33 = plt.contourf(Z2, levels2, cmap=cmap2)
-			CS22 = plt.contourf(Z2, levels22, cmap=cmap2)
-			linopt=['w-.','w--','black','wo']
-			
-		elif curcmap == 'HOT_rev':
-			CCC1=[plt.cm.hot(chosen/itotmaxhist) for chosen in range(totmaxhist)]
-			CCC=CCC1[::-1]
-			cmap2=LinearSegmentedColormap.from_list('HOT', CCC, N=totmaxhist, gamma=1.0)
-			CS33 = plt.contourf(Z2, levels2, cmap=cmap2)
-			CS22 = plt.contourf(Z2, levels22, cmap=cmap2)
-			linopt=['k-.','k--','black','ko']
-		
-		mkpdffigs(rep_cnt,repeat,weight_opt,curcmap,linopt,cmap2,CS33,CS22,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax)
-		
-		i = i + 1
+            elif cmap == 'HOT_rev':
+                CCC1=[plt.cm.hot(chosen/itotmaxhist)
+                      for chosen in range(totmaxhist)]
+                CCC=CCC1[::-1]
+                cmap2.append(LinearSegmentedColormap.from_list('HOT', CCC,
+                                                               N=totmaxhist,
+                                                               gamma=1.0))
+                CS.append(plt.contourf(Z[i], level, cmap=cmap2[i]))
+                linopt.append(['k-.','k--','black','ko'])
+        
+        mkpdffigs(model_dir, letter, cmap, linopt, cmap2, CS, ix, iy, inmin,
+                  inmax, invals, normvals, xlabels, ylabels, name)
 
 # ----------------------------------------------------------------------------
-def mkpdffigs(rep_cnt,repeat,weight_opt,curcmap,linopt,cmap2,CS33,CS22,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax):
+# def mkpdffigs(rep_cnt,repeat,weight_opt,curcmap,linopt,cmap2,CS33,CS22,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax):
+def mkpdffigs(model_dir, letter, cmap, linopt, cmap2, CS, ix, iy, inmin,
+              inmax, invals, normvals, xlabels, ylabels, name):
 
-	# Dispersion Curve PDFs
-	plt.close("all")
-	plt.contourf(newpin, newvinD, normph, cmap=cmap2)
-	cb=plt.colorbar(CS22)	
-	plt.ylabel('VS (km/s)')
-	plt.xlabel('Period (s)')
-	plt.axis([pmin, pmax, 0, vmax,])
-	obs, = plt.plot(instpd, dobs, linopt[3], zorder=100, markersize=7, 
-					label='measured group velocities')
-	if weight_opt == 'ON':
-		obserr = plt.errorbar(instpd, dobs, yerr=wsig, zorder=20, linestyle="None", linewidth=2.0, ecolor='k')
-	plt.legend(handles=[obs], fontsize=10)
-	if rep_cnt == (repeat-1):
-		figname = 'PDF_REP_DISP_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_'+abc[run]+'.png'
-	else:
-		figname = 'PDF_DISP_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_'+abc[run]+'.png'
-	figtitle = 'Probability Density Function \n Transdimensional, '+str(maxz_m)+' m total depth'
-	plt.title(figtitle, fontweight='bold', fontsize=14)
-	Dfig = SAVEF + '/' + figname
-	P.savefig(Dfig)
-	meanD, = plt.plot(cutpin, maxlineDISP, linopt[0], linewidth=4.0, zorder=3, label='MEAN')
-	meanD.set_path_effects([PathEffects.Stroke(linewidth=5, foreground='black'),
-				   PathEffects.Normal()])
-	plt.legend(handles=[meanD, obs], fontsize=10)
-	figname = 'PDF_DISP_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_meanline_'+abc[run]+'.png'
-	Dfig = SAVEF + '/' + figname
-	P.savefig(Dfig)
-	
-	
-	# Velocity Model PDFs
-	plt.close("all")
-	plt.contourf(newvin, newzin, normvh, cmap=cmap2)
-	cb=plt.colorbar(CS33)	
-	plt.axis([vmin, vmax, 0, maxz_m])
-	plt.gca().invert_yaxis()
-	plt.xlabel('VS (km/s)')
-	plt.ylabel('Depth (m)')
-	if rep_cnt == (repeat-1):
-		figname = 'PDF_REP_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_'+abc[run]+'.png'
-	else:
-		figname = 'PDF_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_'+abc[run]+'.png'
-	figtitle = 'Probability Density Function \n Transdimensional, '+str(maxz_m)+' m total depth'
-	plt.title(figtitle, fontweight='bold', fontsize=14)
-	Mfig = SAVEF + '/' + figname
-	P.savefig(Mfig)
-	meanline = plt.plot(maxline, newzin, linopt[1], linewidth=4.0)
-	figname = 'PDF_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_meanline_'+abc[run]+'meanline.png'
-	Mfig = SAVEF + '/' + figname
-	P.savefig(Mfig)	
+    for i, cm2 in enumerate(cmap2):
+        print("Working on figure {} using cmap {}: {}".format(i, cmap, name[i]))
+        plt.close("all")
+        plt.contourf(invals[ix[i]], invals[iy[i]], np.transpose(normvals[i]),
+                     cmap=cm2)
+        cb = plt.colorbar(CS[i])
+        plt.axis([inmin[ix[i]], inmax[ix[i]], inmin[iy[i]], inmax[iy[i]]])
+        plt.xlabel(xlabels[i])
+        plt.ylabel(ylabels[i])
+
+        Mfig = model_dir + letter + '_' + cmap + '_' + name[i] + '.png'
+        P.savefig(Mfig)
+
+    # # Dispersion Curve PDFs
+    # plt.close("all")
+    # plt.contourf(newpin, newvinD, normph, cmap=cmap2)
+    # cb=plt.colorbar(CS22)    
+    # plt.ylabel('VS (km/s)')
+    # plt.xlabel('Period (s)')
+    # plt.axis([pmin, pmax, 0, vmax,])
+    # obs, = plt.plot(instpd, dobs, linopt[3], zorder=100, markersize=7, 
+    #                 label='measured group velocities')
+    # if weight_opt == 'ON':
+    #     obserr = plt.errorbar(instpd, dobs, yerr=wsig, zorder=20, linestyle="None", linewidth=2.0, ecolor='k')
+    # plt.legend(handles=[obs], fontsize=10)
+    # if rep_cnt == (repeat-1):
+    #     figname = 'PDF_REP_DISP_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_'+abc[run]+'.png'
+    # else:
+    #     figname = 'PDF_DISP_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_'+abc[run]+'.png'
+    # figtitle = 'Probability Density Function \n Transdimensional, '+str(maxz_m)+' m total depth'
+    # plt.title(figtitle, fontweight='bold', fontsize=14)
+    # Dfig = SAVEF + '/' + figname
+    # P.savefig(Dfig)
+    # meanD, = plt.plot(cutpin, maxlineDISP, linopt[0], linewidth=4.0, zorder=3, label='MEAN')
+    # meanD.set_path_effects([PathEffects.Stroke(linewidth=5, foreground='black'),
+    #                PathEffects.Normal()])
+    # plt.legend(handles=[meanD, obs], fontsize=10)
+    # figname = 'PDF_DISP_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_meanline_'+abc[run]+'.png'
+    # Dfig = SAVEF + '/' + figname
+    # P.savefig(Dfig)
+    
+    
+    # # Velocity Model PDFs
+    # plt.close("all")
+    # plt.contourf(newvin, newzin, normvh, cmap=cmap2)
+    # cb=plt.colorbar(CS33)    
+    # plt.axis([vmin, vmax, 0, maxz_m])
+    # plt.gca().invert_yaxis()
+    # plt.xlabel('VS (km/s)')
+    # plt.ylabel('Depth (m)')
+    # if rep_cnt == (repeat-1):
+    #     figname = 'PDF_REP_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_'+abc[run]+'.png'
+    # else:
+    #     figname = 'PDF_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_'+abc[run]+'.png'
+    # figtitle = 'Probability Density Function \n Transdimensional, '+str(maxz_m)+' m total depth'
+    # plt.title(figtitle, fontweight='bold', fontsize=14)
+    # Mfig = SAVEF + '/' + figname
+    # P.savefig(Mfig)
+    # meanline = plt.plot(maxline, newzin, linopt[1], linewidth=4.0)
+    # figname = 'PDF_TRANSD_lay_'+str(maxz_m)+'m_'+curcmap+'_meanline_'+abc[run]+'meanline.png'
+    # Mfig = SAVEF + '/' + figname
+    # P.savefig(Mfig)    
 
 # ----------------------------------------------------------------------------
 
@@ -865,7 +671,6 @@ def mkpdffigs(rep_cnt,repeat,weight_opt,curcmap,linopt,cmap2,CS33,CS22,newvin,ne
 
 # ----------------------------------------------------------------------------
 
-"""
 
 
 

@@ -253,6 +253,9 @@ class TremorModel(object):
         omega = np.sqrt(self.k*(1. + self.r3)/(self.M + self.m))
         self.f = omega/(2.*math.pi)
         # self.f = np.sqrt(self.k*(1. + self.r3)/(self.M + self.m))
+
+    def calc_flux(self): # steady state volume flux of fluid hs*w*vs
+        self.flux = self.hs*self.width*self.vs
         
     def generate_tremor(self, duration, dt, w0):
         """
