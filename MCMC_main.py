@@ -124,8 +124,12 @@ if ifInstaseis:
 # Scaling parameters
 # Assume a power law scaling to estimated seismic moment: A = c0*M0^alpha
 # Parameters are estimated from regression of numbers from amp_scaling.py
-c0 = 3.523e-19
-alpha = 0.607
+# Parameters for EH45Tcold
+# c0 = 3.523e-19
+# alpha = 0.607
+# Parameters for EH45Tcold_crust1b
+c0 = 6.0e-19
+alpha = 0.632
 
 
 # Make data vector.  Right now is hard-coded, but will adjust to read from file

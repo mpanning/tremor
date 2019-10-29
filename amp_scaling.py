@@ -18,9 +18,9 @@ symbols = ['ro', 'bo', 'go', 'ko']
 lines = ['r-', 'b-', 'g-', 'k-']
 verbose = False
 
-# db_short = "EH45TcoldCrust1b"
+db_short = "EH45TcoldCrust1b"
 # Instaseis parameters
-db_short = "EH45Tcold"
+# db_short = "EH45Tcold"
 instaseisDB = "http://instaseis.ethz.ch/blindtest_1s/{}_1s/".format(db_short)
 maxRetry = 25
 db = instaseis.open_db(instaseisDB)
