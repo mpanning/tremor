@@ -304,7 +304,7 @@ def fluxhist(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs):
 
     
 # ----------------------------------------------------------------------------
-def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin, fluxmax):
+def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin, fluxmax, fmin, fmax, amin, amax, Rmin, Rmax):
     # Discretize L, eta, pressure and aspect ratio bins
     Lints = 100
     Lin = np.linspace(Lmin, Lmax, Lints)
@@ -316,6 +316,14 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
     wlin = np.linspace(wlmin, wlmax, wlints)
     fluxints = 100
     fluxin = np.linspace(fluxmin, fluxmax, fluxints)
+
+    # Discretize predicted observation bins
+    freqints = 100
+    freqin = np.linspace(fmin, fmax, freqints)
+    ampints = 100
+    ampin = np.linspace(amin, amax, ampints)
+    Rints = 100
+    Rin = np.linspace(Rmin, Rmax, Rints)
     
     # Establish 2D arrays for all comparison hit counts
     Leta = np.zeros((Lints, etaints), dtype=np.dtype(int))
@@ -328,6 +336,10 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
     etaflux = np.zeros((etaints, fluxints), dtype=np.dtype(int))
     prflux = np.zeros((prints, fluxints), dtype=np.dtype(int))
     wlflux = np.zeros((wlints, fluxints), dtype=np.dtype(int))
+    freqamp = np.zeros((freqints, ampints), dtype=np.dtype(int))
+    freqR = np.zeros((freqints, Rints), dtype=np.dtype(int))
+    ampR = np.zeros((ampints, Rints), dtype=np.dtype(int))
+
 
 
     # Loop through all kept models, dealing with one model at a time
@@ -346,6 +358,12 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
         iwl = int((sample.wl - wlmin)/dwl)
         dflux = fluxin[1]-fluxin[0]
         iflux = int((sample.flux[0] - fluxmin)/dflux)
+        dfreq = freqin[1]-freqin[0]
+        ifreq = int((sample.f[0] - fmin)/dfreq)
+        damp = ampin[1]-ampin[0]
+        iamp = int((sample.dpre[1] - amin)/damp)
+        dR = Rin[1]-Rin[0]
+        iR = int((sample.dpre[2] - Rmin)/dR)
 
         # Increment all the 2D arrays
         Leta[iL, ieta] += 1
@@ -358,6 +376,9 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
         etaflux[ieta, iflux] += 1
         prflux[ipr, iflux] += 1
         wlflux[iwl, iflux] += 1
+        freqamp[ifreq, iamp] += 1
+        freqR[ifreq, iR] += 1
+        ampR[iamp, iR] += 1
 
     # Normalize to get pdf
     normLeta = np.array(Leta/float(nummods))
@@ -370,20 +391,26 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
     normetaflux = np.array(etaflux/float(nummods))
     normprflux = np.array(prflux/float(nummods))
     normwlflux = np.array(wlflux/float(nummods))
+    normfreqamp = np.array(freqamp/float(nummods))
+    normfreqR = np.array(freqR/float(nummods))
+    normampR = np.array(ampR/float(nummods))
 
     # Return 1d and 2d arrays
-    return (Lin, etain, prin, wlin, fluxin, Leta, Lpr, Lwl, etapr, etawl, prwl,
-            Lflux, etaflux, prflux, wlflux, normLeta, normLpr, normLwl,
-            normetapr, normetawl, normprwl, normLflux, normetaflux, normprflux,
-            normwlflux)
+    return (Lin, etain, prin, wlin, fluxin, freqin, ampin, Rin, Leta, Lpr, Lwl,
+            etapr, etawl, prwl, Lflux, etaflux, prflux, wlflux, freqamp, freqR,
+            ampR, normLeta, normLpr, normLwl, normetapr, normetawl, normprwl,
+            normLflux, normetaflux, normprflux, normwlflux, normfreqamp,
+            normfreqR, normampR)
             
 # ----------------------------------------------------------------------------
 # def setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax):
 # STILL REWORKING THIS TO USE ARRAYS TO PASS TO MAKEPDFFIG
 def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
-                normLeta, normLpr, normLwl, normetapr, normetawl, normprwl,
-                normLflux, normetaflux, normprflux, normwlflux, Lmin, Lmax,
-                etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin, fluxmax):
+                freqin, ampin, Rin, normLeta, normLpr, normLwl, normetapr,
+                normetawl, normprwl, normLflux, normetaflux, normprflux,
+                normwlflux, normfreqamp, normfreqR, normampR, Lmin, Lmax,
+                etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin, fluxmax,
+                fmin, fmax, amin, amax, Rmin, Rmax):
     
     totmaxhist = 50
     itotmaxhist = totmaxhist + 0.0
@@ -414,6 +441,15 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     inmin.append(fluxmin)
     inmax.append(fluxmax)
     invals.append(fluxin)
+    inmin.append(fmin)
+    inmax.append(fmax)
+    invals.append(freqin)
+    inmin.append(amin)
+    inmax.append(amax)
+    invals.append(ampin)
+    inmin.append(Rmin)
+    inmax.append(Rmax)
+    invals.append(Rin)
 
     # Leta
     minv = 0
@@ -535,6 +571,42 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     ix.append(3)
     iy.append(4)
     normvals.append(normwlflux)
+    
+    # freqamp
+    minv = 0
+    maxv = normfreqamp.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('freqamp')
+    xlabels.append('Frequency (Hz)')
+    ylabels.append(r'Seismic amplitude (m/s$^2$)')
+    ix.append(5)
+    iy.append(6)
+    normvals.append(normfreqamp)
+    
+    # freqR
+    minv = 0
+    maxv = normfreqR.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('freqR')
+    xlabels.append('Frequency (Hz)')
+    ylabels.append('R value')
+    ix.append(5)
+    iy.append(7)
+    normvals.append(normfreqR)
+    
+    # ampR
+    minv = 0
+    maxv = normampR.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('ampR')
+    xlabels.append(r'Seismic amplitude (m/s$^2$)')
+    ylabels.append('R value')
+    ix.append(6)
+    iy.append(7)
+    normvals.append(normampR)
     
 
     for cmap in pdfcmap:

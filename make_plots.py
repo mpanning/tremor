@@ -105,16 +105,19 @@ for i in range(nletters):
     
     # Make 2D pdf plots
     pdfcmaps = ('GREYS', 'HOT')
-    (Lin, etain, prin, wlin, fluxin, Leta,
+    (Lin, etain, prin, wlin, fluxin, freqin, ampin, Rin, Leta,
      Lpr, Lwl, etapr, etawl, prwl,
-     Lflux, etaflux, prflux, wlflux,
+     Lflux, etaflux, prflux, wlflux, freqamp, freqR, ampR,
      normLeta, normLpr, normLwl,
      normetapr, normetawl, normprwl, normLflux, normetaflux,
-     normprflux, normwlflux) = pdfdiscrtze(nmodels, models, Lmin, Lmax,
-                                           etamin, etamax, prmin, prmax,
-                                           wlmin, wlmax, fluxmin, fluxmax)
+     normprflux, normwlflux, normfreqamp,
+     normfreqR, normampR) = pdfdiscrtze(nmodels, models, Lmin, Lmax,
+                                        etamin, etamax, prmin, prmax,
+                                        wlmin, wlmax, fluxmin, fluxmax, fmin,
+                                        fmax, amin, amax, Rmin, Rmax)
     setpdfcmaps(model_dir, pdfcmaps, all_letters[i], Lin, etain, prin, wlin,
-                fluxin, normLeta, normLpr, normLwl, normetapr, normetawl,
-                normprwl, normLflux, normetaflux, normprflux, normwlflux,
+                fluxin, freqin, ampin, Rin, normLeta, normLpr, normLwl,
+                normetapr, normetawl, normprwl, normLflux, normetaflux,
+                normprflux, normwlflux, normfreqamp, normfreqR, normampR,
                 Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin,
-                fluxmax)
+                fluxmax, fmin, fmax, amin, amax, Rmin, Rmax)
