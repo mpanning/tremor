@@ -350,20 +350,78 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
         # Find indices
         dL = Lin[1] - Lin[0]
         iL = int((sample.L - Lmin)/dL)
+        if (iL >= Lints) or (iL < 0):
+            print("Warning: L outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.L, Lmin, Lmax))
+            if (iL > Lints - 1):
+                iL = Lints - 1
+            elif (iL < 0):
+                iL = 0                  
         deta = etain[1] - etain[0]
         ieta = int((sample.eta[0] - etamin)/deta)
+        if (ieta >= etaints) or (ieta < 0):
+            print("Warning: eta outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.eta[0], etamin,
+                                                  etamax))
+            if (ieta > etaints - 1):
+                ieta = etaints - 1
+            elif (ieta < 0):
+                ieta = 0                  
         dpr = prin[1] - prin[0]
         ipr = int((sample.pratio - prmin)/dpr)
+        if (ipr >= prints) or (ipr < 0):
+            print("Warning: pressure ratio outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.pratio, prmin, prmax))
+            if (ipr > prints - 1):
+                ipr = prints - 1
+            elif (ipr < 0):
+                ipr = 0                  
         dwl = wlin[1] - wlin[0]
         iwl = int((sample.wl - wlmin)/dwl)
+        if (iwl >= wlints) or (iwl < 0):
+            print("Warning: aspect ratio outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.wl, wlmin, wlmax))
+            if (iwl > wlints - 1):
+                iwl = wlints - 1
+            elif (iwl < 0):
+                iwl = 0                  
         dflux = fluxin[1]-fluxin[0]
         iflux = int((sample.flux[0] - fluxmin)/dflux)
+        if (iflux >= fluxints) or (iflux < 0):
+            print("Warning: aspect ratio outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.flux[0], fluxmin,
+                                                  fluxmax))
+            if (iflux > fluxints - 1):
+                iflux = fluxints - 1
+            elif (iflux < 0):
+                iflux = 0                  
         dfreq = freqin[1]-freqin[0]
         ifreq = int((sample.f[0] - fmin)/dfreq)
+        if (ifreq >= freqints) or (ifreq < 0):
+            print("Warning: frequency outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.f[0], fmin, fmax))
+            if (ifreq > freqints - 1):
+                ifreq = freqints - 1
+            elif (ifreq < 0):
+                ifreq = 0                  
         damp = ampin[1]-ampin[0]
         iamp = int((sample.dpre[1] - amin)/damp)
+        if (iamp >= ampints) or (iamp < 0):
+            print("Warning: amplitude outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.dpre[1], amin, amax))
+            if (iamp > ampints - 1):
+                iamp = ampints - 1
+            elif (iamp < 0):
+                iamp = 0                  
         dR = Rin[1]-Rin[0]
         iR = int((sample.dpre[2] - Rmin)/dR)
+        if (iR >= Rints) or (iR < 0):
+            print("Warning: R parameter outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.dpre[2], Rmin, Rmax))
+            if (iR > Rints - 1):
+                iR = Rints - 1
+            elif (iR < 0):
+                iR = 0                  
 
         # Increment all the 2D arrays
         Leta[iL, ieta] += 1

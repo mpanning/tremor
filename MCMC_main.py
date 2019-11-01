@@ -291,8 +291,8 @@ for run in range(numrun):
         Lmin = 1.0
         Lmax = 1000.0
 
-        etamin = 1.0
-        etamax = 1000.0
+        etamin = 8.9e-4 # lower limit is water at STP
+        etamax = 1000.0 # uppper limit is reasonable for basalt with some xtals
 
         prmin = 1.00001
         prmax = 1.2
