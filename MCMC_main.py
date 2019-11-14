@@ -220,10 +220,10 @@ reprunsHIST = []
 # Given that many of these vary over orders of magnitude, maybe should use
 # log value as input, and thus it becomes log-normal perturbation.  Consider
 # this and whether it should effect acceptance criteria
-thetaL = np.log(1.05) # Length perturbations
-thetaETA = np.log(1.05) # Using a log normal perturbation instead
-thetaPR = np.log(1.005) # Pressure ratio perturbatio
-thetaWL = np.log(1.05) # Using a log normal perturbation instead
+thetaL = np.log(1.10) # Length perturbations
+thetaETA = np.log(1.10) # Using a log normal perturbation instead
+thetaPR = np.log(1.01) # Pressure ratio perturbatio
+thetaWL = np.log(1.10) # Using a log normal perturbation instead
 
 # Use higher values during burn-in time period if highburn True
 highburn = False

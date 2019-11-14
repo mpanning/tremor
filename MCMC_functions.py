@@ -269,8 +269,10 @@ def Lhist(dir, letter, Lmin, Lmax, nLbins, Ls):
 def etahist(dir, letter, etamin, etamax, netabins, etas):
     plt.close('all')
     P.figure
-    P.hist(etas, bins= np.linspace(etamin, etamax, netabins))
+    P.hist(etas, bins=np.logspace(math.log10(etamin), math.log10(etamax),
+                                  netabins))
     plt.xlabel(r'Fluid viscosity (Pa s)')
+    plt.xscale('log')
     plt.ylabel('Count')
     figname = dir + letter + '_etahist.png'
     P.savefig(figname)

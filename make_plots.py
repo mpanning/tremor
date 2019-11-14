@@ -11,7 +11,7 @@ import string
 from MCMC_functions import (fhist, pdhist, amphist, Rhist, Lhist, etahist,
                             prhist, wlhist, pdfdiscrtze, setpdfcmaps, fluxhist)
 
-model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run2/saved_models/"
+model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run1/saved_models/"
 fmin = 0.0
 fmax = 1.0
 nfbins = 25
@@ -27,7 +27,7 @@ nRbins = 25
 Lmin = 1.0
 Lmax = 1000.0
 nLbins = 100
-etamin = 1.0
+etamin = 8.9e-4
 etamax = 1000.0
 netabins = 100
 prmin = 1.0
