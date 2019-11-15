@@ -24,7 +24,9 @@ h0_equil_frac = 0.95 # The assumed fraction of equilibrium h0 used
 # First a couple private utility functions
 def _vectorfield(w, t, p): # Private utility function for integration
     """
-    Defines the differential equations for the tremor system
+    Defines the differential equations for the tremor system.
+    Rearrangement of equations 9 and 12 from Julian, 1994 to set up as
+    series of coupled first-order ODEs
 
     Arguments:
       w : vector of the state variables
@@ -283,9 +285,12 @@ class TremorModel(object):
             # Pack parameters
             p = [self.rho, val, self.p1, self.p2, self.L, self.M, self.A,
                  self.k, self.h0]
-
+            print(p)
+            # ivp_out = solve_ivp(fun=lambda t, w: _vectorfield(w, t, p),
+            #                     t_span=(0, duration), y0=w0, method='RK45',
+            #                     t_eval=t)
             ivp_out = solve_ivp(fun=lambda t, w: _vectorfield(w, t, p),
-                                t_span=(0, duration), y0=w0, method='RK45',
+                                t_span=(0, duration), y0=w0, method='Radau',
                                 t_eval=t)
             wsol.append(np.transpose(ivp_out['y']))
 

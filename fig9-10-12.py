@@ -118,17 +118,25 @@ for i, val in enumerate(eta):
                                 "{:.5f}".format(w1[1]), "{:.5f}".format(w1[2])])
 
 # Fig 12
+k = 6.e8
+rho = 2.5e3
+
 p1 = 18.e6
-M = 3.e5
+p2 = 0.1e6
+L = 10.0
+h0 = 1.0
+# M = 3.e5
+M = 0.
 A = 1.e7
 start_time = timeit.default_timer()
-model = tremor.TremorModel(k=k, M=M, rho=rho, p1=p1, p2=p2, h0=h0, L=10., g=g)
+model = tremor.TremorModel(k=k, M=M, rho=rho, p1=p1, p2=p2, h0=h0, L=10., g=g,
+                           A=A)
+eta = [50.]
+model.set_eta(eta)
 model.calc_derived()
 elapsed = timeit.default_timer() - start_time
 print("Initiate model time: {:.3f} ms".format(1.e3*elapsed))
 
-eta = [50.]
-model.set_eta(eta)
 
 start_time = timeit.default_timer()
 # This does all intermediate calculations (hs, vs, a, m, r1, r2, r3)
