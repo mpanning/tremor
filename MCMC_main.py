@@ -132,7 +132,7 @@ c0 = 6.0e-19
 alpha = 0.632
 
 
-# Make data vector.  Right now is hard-coded, but will adjust to read from file
+# Make data vector.  Right now is hard-coded, but may adjust to read from file
 freq_obs = 0.35 # Dominant frequency of signal (Hz)
 period_obs = 1./freq_obs
 amp_obs = 1.5e-9 # Acceleration amplitude (m/s^2)
@@ -157,6 +157,9 @@ R_sigma = 0.05
 dobs = np.append(dobs, R_expected)
 ndata += 1
 wsig = np.append(wsig, R_sigma)
+
+# Use different h0 value
+h0_frac = 0.98 # Default in tremor.py is 0.95
 
 # create boss matrix to control all combinations of starting depths
 depopt = ([6.0, 60.0])
@@ -337,7 +340,8 @@ for run in range(numrun):
                 x = tremor.TremorModel(depth=boss0*1.e3,
                                        pratio=stpratio[chain], mu=boss1,
                                        L=stL[chain],
-                                       width=stwl[chain]*stL[chain])
+                                       width=stwl[chain]*stL[chain],
+                                       h0_frac=h0_frac)
 
                 # Get basic parameters
                 eta = steta[chain]
@@ -364,7 +368,8 @@ for run in range(numrun):
                                                                 wlmin, wlmax)
                                 x = tremor.TremorModel(depth=boss0*1.e3,
                                                        pratio=pratio, mu=boss1,
-                                                       L=L, width=wl*L)
+                                                       L=L, width=wl*L,
+                                                       h0_frac=h0_frac)
                                 x.set_eta(eta)
                                 x.calc_derived()
                                 x.calc_R()
@@ -521,7 +526,8 @@ for run in range(numrun):
                                                                pratio=oldx.pratio,
                                                                mu=boss1,
                                                                L=newL,
-                                                               width=oldx.wl*newL)
+                                                               width=oldx.wl*newL,
+                                                               h0_frac=h0_frac)
                                         x.set_eta(oldx.eta)
                                 # vsOUT = copy.deepcopy(vsIN)
                                 # BDi = 0
@@ -594,7 +600,8 @@ for run in range(numrun):
                                                                pratio=newPR,
                                                                mu=boss1,
                                                                L=oldx.L,
-                                                               width=oldx.wl*oldx.L)
+                                                               width=oldx.wl*oldx.L,
+                                                               h0_frac=h0_frac)
                                         x.set_eta(oldx.eta)
 
 
@@ -631,7 +638,8 @@ for run in range(numrun):
                                                                pratio=oldx.pratio,
                                                                mu=boss1,
                                                                L=oldx.L,
-                                                               width=newWL*oldx.L)
+                                                               width=newWL*oldx.L,
+                                                               h0_frac=h0_frac)
                                         x.set_eta(oldx.eta)
                         # Calculate frequency
                         x.calc_derived()

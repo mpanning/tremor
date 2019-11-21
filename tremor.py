@@ -97,7 +97,7 @@ class TremorModel(object):
     """
     def __init__(self, depth=None, pratio=None, mu=None, rho=None,
                  A=None, L=None, g=None, k=None, width=None, h0=None, p1=None,
-                 p2=None, M=None):
+                 p2=None, M=None, h0_frac=None):
         if depth is not None:
             self.depth = depth
         else:
@@ -162,7 +162,8 @@ class TremorModel(object):
                 self.calc_width()
         self.wl = self.width/self.L
         # If these are None, will be set in calc_derived
-        self.h0 = h0 
+        self.h0 = h0
+        self.h0_frac = h0_frac
         self.M = M
 
     def calc_width(self):
@@ -190,7 +191,10 @@ class TremorModel(object):
         if self.M is None:
             self.M = 0.5 * self.rho * self.L * self.L
         if self.h0 is None:
-            self.h0 = -0.5*h0_equil_frac*(self.p1 + self.p2)*self.L/self.k
+            if self.h0_frac is None:
+                self.h0 = -0.5*h0_equil_frac*(self.p1 + self.p2)*self.L/self.k
+            else:
+                self.h0 = -0.5*self.h0_frac*(self.p1 + self.p2)*self.L/self.k
         # self.wl = self.width/self.L # May allow this to be set
         self.Vp = math.sqrt(3.*self.mu/self.rho) # Assumes Poisson solid
 
