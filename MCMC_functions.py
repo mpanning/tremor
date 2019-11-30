@@ -59,19 +59,22 @@ def maxtwo (number1, number2):
             comparmax = number1
     return comparmax
 # ----------------------------------------------------------------------------
-def startmodel(totch, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
+def startmodel(totch, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax,
+               h0min, h0max):
     stL = np.zeros(totch)
     steta = np.zeros(totch)
     stpratio = np.zeros(totch)
     stwl = np.zeros(totch)
+    sth0 = np.zeros(totch)
 
     for cnt in range(totch):
         stL[cnt] = random.uniform(Lmin, Lmax)
         steta[cnt] = random.uniform(etamin, etamax)
         stpratio[cnt] = random.uniform(prmin, prmax)
         stwl[cnt] = random.uniform(wlmin, wlmax)
+        sth0[cnt] = random.uniform(h0min, h0max)
 
-    return (stL, steta, stpratio, stwl)
+    return (stL, steta, stpratio, stwl, sth0)
 # ----------------------------------------------------------------------------
 #def sobs_set (k):
 #    nextmodel = k+1
@@ -132,7 +135,7 @@ def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
         pac = 0
     else:
         # All current options 
-        if (pDRAW >= 0) and (pDRAW <= 3):
+        if (pDRAW >= 0) and (pDRAW <= 4):
             try:
                 misck = math.exp(-(PHI[k+1]-PHI[k])/2)
             except OverflowError:
@@ -153,12 +156,14 @@ def accept_reject (PHI,k,pDRAW,WARN_BOUNDS):
     return (pac,q)
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
-def startchain(Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax):
+def startchain(Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax, h0min,
+               h0max):
     L = random.uniform(Lmin, Lmax)
     eta = random.uniform(etamin, etamax)
     pratio = random.uniform(prmin, prmax)
     wl = random.uniform(wlmin, wlmax)
-    return L, eta, pratio, wl
+    h0 = random.uniform(h0min, h0max)
+    return L, eta, pratio, wl, h0
 # ----------------------------------------------------------------------------    
 # ----------------------------------------------------------------------------
 def errorfig(PHI, BURN, chain, abc, run, SAVEF):

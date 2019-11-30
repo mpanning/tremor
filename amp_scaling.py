@@ -18,9 +18,9 @@ symbols = ['ro', 'bo', 'go', 'ko']
 lines = ['r-', 'b-', 'g-', 'k-']
 verbose = False
 
-db_short = "EH45TcoldCrust1b"
+# db_short = "EH45TcoldCrust1b"
 # Instaseis parameters
-# db_short = "EH45Tcold"
+db_short = "EH45Tcold"
 instaseisDB = "http://instaseis.ethz.ch/blindtest_1s/{}_1s/".format(db_short)
 maxRetry = 25
 db = instaseis.open_db(instaseisDB)
@@ -204,7 +204,7 @@ print("R squared {}".format(r))
 plt.yscale('log')
 plt.xscale('log')
 plt.legend(loc='lower right')
-plt.savefig("m0total_vamp.png")
+plt.savefig("{}_m0total_vamp.png".format(db_short))
 plt.close(fig)
 
 fig = plt.figure()
@@ -230,7 +230,7 @@ print("R squared {}".format(r))
 plt.yscale('log')
 plt.xscale('log')
 plt.legend(loc='lower right')
-plt.savefig("m0average_vamp.png")
+plt.savefig("{}_m0average_vamp.png".format(db_short))
 plt.close(fig)
 
 fig = plt.figure()
@@ -250,7 +250,7 @@ for i in range(len(depths)):
 plt.yscale('log')
 plt.xscale('linear')
 plt.legend(loc='lower right')
-plt.savefig("durations_m0total.png")
+plt.savefig("{}_durations_m0total.png".format(db_short))
 plt.close(fig)
 
 fig = plt.figure()
@@ -270,7 +270,7 @@ for i in range(len(depths)):
 plt.yscale('linear')
 plt.xscale('log')
 plt.legend(loc='lower right')
-plt.savefig("m0total_R.png")
+plt.savefig("{}_m0total_R.png".format(db_short))
 plt.close(fig)
 
 fig = plt.figure()
@@ -280,7 +280,7 @@ for i in range(len(depths)):
 plt.yscale('log')
 plt.xscale('log')
 plt.legend(loc='lower right')
-plt.savefig("m0total_f.png")
+plt.savefig("{}_m0total_f.png".format(db_short))
 plt.close(fig)
 
 print("Frequency vs. vertical amplitude")
@@ -306,7 +306,7 @@ print("R squared {}".format(r))
 plt.yscale('log')
 plt.xscale('log')
 plt.legend(loc='lower right')
-plt.savefig("f_vamp.png")
+plt.savefig("{}_f_vamp.png".format(db_short))
 plt.close(fig)
 
 fig = plt.figure()
@@ -316,7 +316,7 @@ for i in range(len(depths)):
 plt.yscale('log')
 plt.xscale('log')
 plt.legend(loc='lower right')
-plt.savefig("R_vamp.png")
+plt.savefig("{}_R_vamp.png".format(db_short))
 plt.close(fig)
 
 # Try multiple linear regression on log values

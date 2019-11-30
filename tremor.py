@@ -195,6 +195,8 @@ class TremorModel(object):
                 self.h0 = -0.5*h0_equil_frac*(self.p1 + self.p2)*self.L/self.k
             else:
                 self.h0 = -0.5*self.h0_frac*(self.p1 + self.p2)*self.L/self.k
+        elif self.h0_frac is None: # calculate h0_frac
+            self.h0_frac = -2.*self.k/((self.p1 + self.p2)*self.L)
         # self.wl = self.width/self.L # May allow this to be set
         self.Vp = math.sqrt(3.*self.mu/self.rho) # Assumes Poisson solid
 
@@ -289,13 +291,13 @@ class TremorModel(object):
             # Pack parameters
             p = [self.rho, val, self.p1, self.p2, self.L, self.M, self.A,
                  self.k, self.h0]
-            print(p)
-            # ivp_out = solve_ivp(fun=lambda t, w: _vectorfield(w, t, p),
-            #                     t_span=(0, duration), y0=w0, method='RK45',
-            #                     t_eval=t)
+            # print(p)
             ivp_out = solve_ivp(fun=lambda t, w: _vectorfield(w, t, p),
-                                t_span=(0, duration), y0=w0, method='Radau',
+                                t_span=(0, duration), y0=w0, method='RK45',
                                 t_eval=t)
+            # ivp_out = solve_ivp(fun=lambda t, w: _vectorfield(w, t, p),
+            #                     t_span=(0, duration), y0=w0, method='Radau',
+            #                     t_eval=t)
             wsol.append(np.transpose(ivp_out['y']))
 
         wsol = np.array(wsol)

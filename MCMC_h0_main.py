@@ -172,8 +172,7 @@ abc=[]
 DRAW = ['CHANGE CHANNEL LENGTH: Perturb the length of oscillating channel',
         'CHANGE VISCOSITY: Change the viscosity of the fluid in the channel',
         'CHANGE PRATIO: Change the overpressure ratio of the lower reservoir',
-        'CHANGE ASPECT: Change the width to length aspect ratio of channel',
-        'CHANGE H0: Change the equilibrium clamping of the channel']
+        'CHANGE ASPECT: Change the width to length aspect ratio of channel',]
 # ---------------------------------------------------------------------------------------
 # ----------------
 # totch = 10                    # Total number of chains
@@ -228,7 +227,6 @@ thetaL = np.log(1.10) # Length perturbations
 thetaETA = np.log(1.10) # Using a log normal perturbation instead
 thetaPR = np.log(1.01) # Pressure ratio perturbatio
 thetaWL = np.log(1.10) # Using a log normal perturbation instead
-thetaH0 = 0.002
 
 # Use higher values during burn-in time period if highburn True
 highburn = False
@@ -237,13 +235,11 @@ if highburn:
         thetaETA_burn = np.log(1.2)
         thetaPR_burn = np.log(1.02)
         thetaWL_burn = np.log(1.2)
-        thetaH0_burn = 0.01
 else:
         thetaL_burn = thetaL
         thetaETA_burn = thetaETA
         thetaPR_burn = thetaPR
         thetaWL_burn = thetaWL
-        thetaH0_burn = thetaH0
 # ---------------------------------------------------------------------------------------
 
 savefname = "saved_models"
@@ -307,9 +303,6 @@ for run in range(numrun):
         wlmin = 5.0
         wlmax = 100.0
 
-        h0min = 0.9
-        h0max = 0.99
-
         # if rep_cnt == repeat:
         #         rep_cnt = 0
         #         RUNMODS = []
@@ -328,10 +321,9 @@ for run in range(numrun):
         BEST_CHMODS = []
 
         # Set up totch chains:------------------------
-        stL, steta, stpratio, stwl, sth0 = startmodel(totch, Lmin, Lmax,
-                                                      etamin, etamax, prmin,
-                                                      prmax, wlmin, wlmax,
-                                                      h0min, h0max)
+        stL, steta, stpratio, stwl = startmodel(totch, Lmin, Lmax, etamin,
+                                                etamax, prmin, prmax, wlmin,
+                                                wlmax)
 
 
         acc_rate = np.zeros(totch)
@@ -349,7 +341,7 @@ for run in range(numrun):
                                        pratio=stpratio[chain], mu=boss1,
                                        L=stL[chain],
                                        width=stwl[chain]*stL[chain],
-                                       h0_frac=sth0[chain])
+                                       h0_frac=h0_frac)
 
                 # Get basic parameters
                 eta = steta[chain]
@@ -370,19 +362,14 @@ for run in range(numrun):
                                 istart += 1
                                 if (istart % 10 == 0 and ifVerbose):
                                         print("Attempt {}".format(istart))
-                                L, eta, pratio, wl, h0 = startchain(Lmin, Lmax,
-                                                                    etamin,
-                                                                    etamax,
-                                                                    prmin,
-                                                                    prmax,
-                                                                    wlmin,
-                                                                    wlmax,
-                                                                    h0min,
-                                                                    h0max)
+                                L, eta, pratio, wl = startchain(Lmin, Lmax,
+                                                                etamin, etamax,
+                                                                prmin, prmax,
+                                                                wlmin, wlmax)
                                 x = tremor.TremorModel(depth=boss0*1.e3,
                                                        pratio=pratio, mu=boss1,
                                                        L=L, width=wl*L,
-                                                       h0_frac=h0)
+                                                       h0_frac=h0_frac)
                                 x.set_eta(eta)
                                 x.calc_derived()
                                 x.calc_R()
@@ -500,13 +487,13 @@ for run in range(numrun):
                         WARN_BOUNDS = False
 
                         ########### Draw a new model ########################
-                        # Choose random integer between 0 and 4 such that each 
-                        # of the 5 options
+                        # Choose random integer between 0 and 3 such that each 
+                        # of the 4 options
                         # (Change L, Change Viscosity, Change Pressure Ratio,
-                        # Change Aspect Ratio, Change h0) have
-                        #  a 1/5 chance of being selected
+                        # Change Aspect Ratio) have
+                        #  a 1/4 chance of being selected
 
-                        pDRAW = randint(0,4)
+                        pDRAW = randint(0,3)
 
                         # Change channel length
                         if pDRAW == 0:
@@ -540,7 +527,7 @@ for run in range(numrun):
                                                                mu=boss1,
                                                                L=newL,
                                                                width=oldx.wl*newL,
-                                                               h0_frac=oldx.h0_frac)
+                                                               h0_frac=h0_frac)
                                         x.set_eta(oldx.eta)
                                 # vsOUT = copy.deepcopy(vsIN)
                                 # BDi = 0
@@ -614,7 +601,7 @@ for run in range(numrun):
                                                                mu=boss1,
                                                                L=oldx.L,
                                                                width=oldx.wl*oldx.L,
-                                                               h0_frac=oldx.h0_frac)
+                                                               h0_frac=h0_frac)
                                         x.set_eta(oldx.eta)
 
 
@@ -652,43 +639,8 @@ for run in range(numrun):
                                                                mu=boss1,
                                                                L=oldx.L,
                                                                width=newWL*oldx.L,
-                                                               h0_frac=oldx.h0_frac)
+                                                               h0_frac=h0_frac)
                                         x.set_eta(oldx.eta)
-                        # Change h0
-                        elif pDRAW == 4:
-                                if ifVerbose:
-                                        print(DRAW[pDRAW])
-
-                                if k < BURN:
-                                        theta = thetaH0_burn
-                                else:
-                                        theta = thetaH0
-
-                                wH0 = np.random.normal(0, theta)
-                                newH0 = oldx.h0_frac + wH0
-
-                                if ifVerbose:
-                                        print('Perturb h0 fraction by ' +
-                                              str(wH0))
-
-                                if (newH0 < h0min) or (newH0 > h0max):
-                                        if ifVerbose:
-                                                print("!!! Outside aspect " +
-                                                      "ratio range\n")
-                                                print("Automatically REJECT " +
-                                                      "model")
-                                        WARN_BOUNDS = True
-                                else:
-                                        x = tremor.TremorModel(depth=boss0*1.e3,
-                                                               pratio=oldx.pratio,
-                                                               mu=boss1,
-                                                               L=oldx.L,
-                                                               width=oldx.wl*oldx.L,
-                                                               h0_frac=newH0)
-                                        x.set_eta(oldx.eta)
-                                                
-                        
-        
                         # Calculate frequency
                         x.calc_derived()
                         x.calc_R()
@@ -786,7 +738,7 @@ for run in range(numrun):
                         # Calculate error of the new model:
                         if ifVerbose:
                                 print("Freq {:.4f}, Amplitude {:.3E}, Duration {:.1f}, R {:.3f}".format(x.f[0], vamp, dur_pre, x.R[0]))
-                                print("L {:.1f} eta {:.1f} pratio {:.6f} aspect {:.1f} h0 {:.3f}".format(x.L, x.eta[0], x.pratio, x.wl, x.h0_frac))
+                                print("L {:.1f} eta {:.1f} pratio {:.6f} aspect {:.1f}".format(x.L, x.eta[0], x.pratio, x.wl))
                                 print("M0 {:.3E}".format(M0))
                         misfit,newmis,PHI,x,diagCE = finderror(k,x,ndata,dpre,
                                                                dobs,misfit,

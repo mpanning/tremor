@@ -11,7 +11,7 @@ import string
 from MCMC_functions import (fhist, pdhist, amphist, Rhist, Lhist, etahist,
                             prhist, wlhist, pdfdiscrtze, setpdfcmaps, fluxhist)
 
-model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run1/saved_models/"
+model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run4/saved_models/"
 fmin = 0.0
 fmax = 1.0
 nfbins = 25
