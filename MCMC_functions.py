@@ -219,9 +219,10 @@ def accratefig(totch, acc_rate, draw_acc_rate, abc, run, SAVEF):
 def fhist(dir, letter, fmin, fmax, nfbins, freqs):
     plt.close('all')
     P.figure
-    P.hist(freqs, bins= np.linspace(fmin, fmax, nfbins))
+    weights = np.ones_like(freqs)/float(len(freqs))
+    P.hist(freqs, bins= np.linspace(fmin, fmax, nfbins), weights=weights)
     plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Count')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_fhist.png'
     P.savefig(figname)
 
@@ -229,100 +230,117 @@ def fhist(dir, letter, fmin, fmax, nfbins, freqs):
 def pdhist(dir, letter, pmin, pmax, npbins, pds):
     plt.close('all')
     P.figure
-    P.hist(pds, bins= np.linspace(pmin, pmax, npbins))
+    weights = np.ones_like(pds)/float(len(pds))
+    P.hist(pds, bins= np.linspace(pmin, pmax, npbins), weights=weights)
     plt.xlabel('Period (s)')
-    plt.ylabel('Count')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_pdhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
 def amphist(dir, letter, amin, amax, nabins, amps):
     plt.close('all')
     P.figure
-    P.hist(amps, bins= np.linspace(amin, amax, nabins))
+    weights = np.ones_like(amps)/float(len(amps))
+    P.hist(amps, bins= np.linspace(amin, amax, nabins), weights=weights)
     plt.xlabel(r'Amplitude (m/s$^2$)')
-    plt.ylabel('Count')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_amphist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
 def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
     plt.close('all')
     P.figure
-    P.hist(Rs, bins= np.linspace(Rmin, Rmax, nRbins))
+    weights = np.ones_like(Rs)/float(len(Rs))
+    P.hist(Rs, bins= np.linspace(Rmin, Rmax, nRbins), weights=weights)
     plt.xlabel(r'R value')
-    plt.ylabel('Count')
-    figname = dir + letter + '_Rhist.png'
-    P.savefig(figname)
-# ----------------------------------------------------------------------------
-def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
-    plt.close('all')
-    P.figure
-    P.hist(Rs, bins= np.linspace(Rmin, Rmax, nRbins))
-    plt.xlabel(r'R value')
-    plt.ylabel('Count')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_Rhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
 def Lhist(dir, letter, Lmin, Lmax, nLbins, Ls):
     plt.close('all')
     P.figure
-    P.hist(Ls, bins= np.linspace(Lmin, Lmax, nLbins))
+    weights = np.ones_like(Ls)/float(len(Ls))
+    P.hist(Ls, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights)
     plt.xlabel(r'Channel length (m)')
-    plt.ylabel('Count')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_Lhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
 def etahist(dir, letter, etamin, etamax, netabins, etas):
     plt.close('all')
     P.figure
+    weights = np.ones_like(etas)/float(len(etas))
     P.hist(etas, bins=np.logspace(math.log10(etamin), math.log10(etamax),
-                                  netabins))
+                                  netabins), weights=weights)
     plt.xlabel(r'Fluid viscosity (Pa s)')
     plt.xscale('log')
-    plt.ylabel('Count')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_etahist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
 def prhist(dir, letter, prmin, prmax, nprbins, prs):
     plt.close('all')
     P.figure
-    P.hist(prs, bins= np.linspace(prmin, prmax, nprbins))
+    weights = np.ones_like(prs)/float(len(prs))
+    P.hist(prs, bins= np.linspace(prmin, prmax, nprbins), weights=weights)
     plt.xlabel(r'Driving pressure ratio')
-    plt.ylabel('Count')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_prhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
 def wlhist(dir, letter, wlmin, wlmax, nwlbins, wls):
     plt.close('all')
     P.figure
-    P.hist(wls, bins= np.linspace(wlmin, wlmax, nwlbins))
+    weights = np.ones_like(wls)/float(len(wls))
+    P.hist(wls, bins= np.linspace(wlmin, wlmax, nwlbins), weights=weights)
     plt.xlabel(r'Aspect ratio')
-    plt.ylabel('Count')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_wlhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def h0hist(dir, letter, h0min, h0max, nh0bins, h0s):
+    plt.close('all')
+    P.figure
+    weights = np.ones_like(h0s)/float(len(h0s))
+    P.hist(h0s, bins= np.linspace(h0min, h0max, nh0bins), weights=weights)
+    plt.xlabel(r'h$_0$ fraction')
+    plt.ylabel('Probability density')
+    figname = dir + letter + '_h0hist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
 def fluxhist(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs):
     plt.close('all')
     P.figure
-    P.hist(fluxs, bins= np.linspace(fluxmin, fluxmax, nfluxbins))
+    weights = np.ones_like(fluxs)/float(len(fluxs))
+    P.hist(fluxs, bins= np.logspace(math.log10(fluxmin), math.log10(fluxmax),
+                                    nfluxbins), weights=weights)
     plt.xlabel(r'Volume flux (m$^3$/s)')
-    plt.ylabel('Count')
+    plt.xscale('log')
+    plt.ylabel('Probability density')
     figname = dir + letter + '_fluxhist.png'
     P.savefig(figname)
 
     
 # ----------------------------------------------------------------------------
-def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin, fluxmax, fmin, fmax, amin, amax, Rmin, Rmax):
+def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax,
+                wlmin, wlmax, fluxmin, fluxmax, fmin, fmax, amin, amax, Rmin,
+                Rmax, h0min, h0max):
     # Discretize L, eta, pressure and aspect ratio bins
     Lints = 100
     Lin = np.linspace(Lmin, Lmax, Lints)
+    # etaints = 100
+    # etain = np.linspace(etamin, etamax, etaints)
     etaints = 100
-    etain = np.linspace(etamin, etamax, etaints)
+    etain = np.logspace(math.log10(etamin), math.log10(etamax), etaints)
     prints = 100
     prin = np.linspace(prmin, prmax, prints)
     wlints = 100
     wlin = np.linspace(wlmin, wlmax, wlints)
     fluxints = 100
-    fluxin = np.linspace(fluxmin, fluxmax, fluxints)
+    fluxin = np.logspace(math.log10(fluxmin), math.log10(fluxmax), fluxints)
+    h0ints = 100
+    h0in = np.linspace(h0min, h0max, h0ints)
 
     # Discretize predicted observation bins
     freqints = 100
@@ -346,6 +364,10 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
     freqamp = np.zeros((freqints, ampints), dtype=np.dtype(int))
     freqR = np.zeros((freqints, Rints), dtype=np.dtype(int))
     ampR = np.zeros((ampints, Rints), dtype=np.dtype(int))
+    h0eta = np.zeros((h0ints, etaints), dtype=np.dtype(int))
+    h0pr = np.zeros((h0ints, prints), dtype=np.dtype(int))
+    h0wl = np.zeros((h0ints, wlints), dtype=np.dtype(int))
+    h0flux = np.zeros((h0ints, fluxints), dtype=np.dtype(int))
 
 
 
@@ -364,8 +386,20 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
                 iL = Lints - 1
             elif (iL < 0):
                 iL = 0                  
-        deta = etain[1] - etain[0]
-        ieta = int((sample.eta[0] - etamin)/deta)
+        # deta = etain[1] - etain[0]
+        # ieta = int((sample.eta[0] - etamin)/deta)
+        # if (ieta >= etaints) or (ieta < 0):
+        #     print("Warning: eta outside bounds: setting to limit")
+        #     print("{} {} {} (val min max)".format(sample.eta[0], etamin,
+        #                                           etamax))
+        #     if (ieta > etaints - 1):
+        #         ieta = etaints - 1
+        #     elif (ieta < 0):
+        #         ieta = 0
+        try:
+            ieta = np.where(etain < sample.eta[0])[0][-1]
+        except IndexError: # if below etamin, set ieta = 0
+            ieta = 0
         if (ieta >= etaints) or (ieta < 0):
             print("Warning: eta outside bounds: setting to limit")
             print("{} {} {} (val min max)".format(sample.eta[0], etamin,
@@ -392,8 +426,12 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
                 iwl = wlints - 1
             elif (iwl < 0):
                 iwl = 0                  
-        dflux = fluxin[1]-fluxin[0]
-        iflux = int((sample.flux[0] - fluxmin)/dflux)
+        # dflux = fluxin[1]-fluxin[0]
+        # iflux = int((sample.flux[0] - fluxmin)/dflux)
+        try:
+            iflux = np.where(fluxin < sample.flux[0])[0][-1]
+        except IndexError: # if below etamin, set ieta = 0
+            iflux = 0
         if (iflux >= fluxints) or (iflux < 0):
             print("Warning: aspect ratio outside bounds: setting to limit")
             print("{} {} {} (val min max)".format(sample.flux[0], fluxmin,
@@ -429,6 +467,15 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
                 iR = Rints - 1
             elif (iR < 0):
                 iR = 0                  
+        dh0 = h0in[1]-h0in[0]
+        ih0 = int((sample.h0_frac - h0min)/dh0)
+        if (ih0 >= h0ints) or (ih0 < 0):
+            print("Warning: R parameter outside bounds: setting to limit")
+            print("{} {} {} (val min max)".format(sample.dpre[2], Rmin, Rmax))
+            if (ih0 > h0ints - 1):
+                ih0 = h0ints - 1
+            elif (ih0 < 0):
+                ih0 = 0                  
 
         # Increment all the 2D arrays
         Leta[iL, ieta] += 1
@@ -444,6 +491,10 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
         freqamp[ifreq, iamp] += 1
         freqR[ifreq, iR] += 1
         ampR[iamp, iR] += 1
+        h0eta[ih0, ieta] += 1
+        h0pr[ih0, ipr] += 1
+        h0wl[ih0, iwl] += 1
+        h0flux[ih0, iflux] += 1
 
     # Normalize to get pdf
     normLeta = np.array(Leta/float(nummods))
@@ -459,23 +510,29 @@ def pdfdiscrtze(nummods, CHMODS, Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin
     normfreqamp = np.array(freqamp/float(nummods))
     normfreqR = np.array(freqR/float(nummods))
     normampR = np.array(ampR/float(nummods))
+    normh0eta = np.array(h0eta/float(nummods))
+    normh0pr = np.array(h0pr/float(nummods))
+    normh0wl = np.array(h0wl/float(nummods))
+    normh0flux = np.array(h0flux/float(nummods))
 
     # Return 1d and 2d arrays
-    return (Lin, etain, prin, wlin, fluxin, freqin, ampin, Rin, Leta, Lpr, Lwl,
-            etapr, etawl, prwl, Lflux, etaflux, prflux, wlflux, freqamp, freqR,
-            ampR, normLeta, normLpr, normLwl, normetapr, normetawl, normprwl,
-            normLflux, normetaflux, normprflux, normwlflux, normfreqamp,
-            normfreqR, normampR)
+    return (Lin, etain, prin, wlin, fluxin, freqin, ampin, Rin, h0in, Leta,
+            Lpr, Lwl, etapr, etawl, prwl, Lflux, etaflux, prflux, wlflux,
+            freqamp, freqR, ampR, h0eta, h0pr, h0wl, h0flux, normLeta, normLpr,
+            normLwl, normetapr, normetawl, normprwl, normLflux, normetaflux,
+            normprflux, normwlflux, normfreqamp, normfreqR, normampR, normh0eta,
+            normh0pr, normh0wl, normh0flux)
             
 # ----------------------------------------------------------------------------
 # def setpdfcmaps(pdfcmap,rep_cnt,repeat,weight_opt,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax):
 # STILL REWORKING THIS TO USE ARRAYS TO PASS TO MAKEPDFFIG
 def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
-                freqin, ampin, Rin, normLeta, normLpr, normLwl, normetapr,
+                freqin, ampin, Rin, h0in, normLeta, normLpr, normLwl, normetapr,
                 normetawl, normprwl, normLflux, normetaflux, normprflux,
-                normwlflux, normfreqamp, normfreqR, normampR, Lmin, Lmax,
+                normwlflux, normfreqamp, normfreqR, normampR, normh0eta,
+                normh0pr, normh0wl, normh0flux, Lmin, Lmax,
                 etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin, fluxmax,
-                fmin, fmax, amin, amax, Rmin, Rmax):
+                fmin, fmax, amin, amax, Rmin, Rmax, h0min, h0max):
     
     totmaxhist = 50
     itotmaxhist = totmaxhist + 0.0
@@ -487,6 +544,8 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     normvals = []
     ix = []
     iy = []
+    logx = []
+    logy = []
 
     inmin = []
     inmax = []
@@ -515,6 +574,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     inmin.append(Rmin)
     inmax.append(Rmax)
     invals.append(Rin)
+    inmin.append(h0min)
+    inmax.append(h0max)
+    invals.append(h0in)
 
     # Leta
     minv = 0
@@ -525,7 +587,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('L (m)')
     ylabels.append(r'$\eta$ (Pa s)')
     ix.append(0)
+    logx.append(False)
     iy.append(1)
+    logy.append(True)
     normvals.append(normLeta)
     
 
@@ -538,7 +602,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('L (m)')
     ylabels.append('Driving pressure ratio')
     ix.append(0)
+    logx.append(False)
     iy.append(2)
+    logy.append(False)
     normvals.append(normLpr)
 
     # Lwl
@@ -550,7 +616,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('L (m)')
     ylabels.append('Aspect ratio')
     ix.append(0)
+    logx.append(False)
     iy.append(3)
+    logy.append(False)
     normvals.append(normLwl)
 
     # etapr
@@ -562,7 +630,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append(r'$\eta$ (Pa s)')
     ylabels.append('Driving pressure ratio')
     ix.append(1)
+    logx.append(True)
     iy.append(2)
+    logy.append(False)
     normvals.append(normetapr)
 
     # etawl
@@ -574,7 +644,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append(r'$\eta$ (Pa s)')
     ylabels.append('Aspect ratio')
     ix.append(1)
+    logx.append(True)
     iy.append(3)
+    logy.append(False)
     normvals.append(normetawl)
 
     # prwl
@@ -586,7 +658,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('Driving pressure ratio')
     ylabels.append('Aspect ratio')
     ix.append(2)
+    logx.append(False)
     iy.append(3)
+    logy.append(False)
     normvals.append(normprwl)
 
     # Lflux
@@ -598,7 +672,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('L (m)')
     ylabels.append(r'Volume flux (m$^3$/s)')
     ix.append(0)
+    logx.append(False)
     iy.append(4)
+    logy.append(True)
     normvals.append(normLflux)
     
     # etaflux
@@ -610,7 +686,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append(r'$\eta$ (Pa s)')
     ylabels.append(r'Volume flux (m$^3$/s)')
     ix.append(1)
+    logx.append(True)
     iy.append(4)
+    logy.append(True)
     normvals.append(normetaflux)
     
     # prflux
@@ -622,7 +700,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('Driving pressure ratio')
     ylabels.append(r'Volume flux (m$^3$/s)')
     ix.append(2)
+    logx.append(False)
     iy.append(4)
+    logy.append(True)
     normvals.append(normprflux)
     
     # wlflux
@@ -634,7 +714,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('Aspect ratio')
     ylabels.append(r'Volume flux (m$^3$/s)')
     ix.append(3)
+    logx.append(False)
     iy.append(4)
+    logy.append(True)
     normvals.append(normwlflux)
     
     # freqamp
@@ -646,7 +728,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('Frequency (Hz)')
     ylabels.append(r'Seismic amplitude (m/s$^2$)')
     ix.append(5)
+    logx.append(False)
     iy.append(6)
+    logy.append(False)
     normvals.append(normfreqamp)
     
     # freqR
@@ -658,7 +742,9 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append('Frequency (Hz)')
     ylabels.append('R value')
     ix.append(5)
+    logx.append(False)
     iy.append(7)
+    logy.append(False)
     normvals.append(normfreqR)
     
     # ampR
@@ -670,8 +756,66 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
     xlabels.append(r'Seismic amplitude (m/s$^2$)')
     ylabels.append('R value')
     ix.append(6)
+    logx.append(False)
     iy.append(7)
+    logy.append(False)
     normvals.append(normampR)
+    
+    # h0eta
+    minv = 0
+    maxv = normh0eta.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('h0eta')
+    xlabels.append(r'h$_0$ fraction')
+    ylabels.append('Viscosity (Pa s)')
+    ix.append(8)
+    logx.append(False)
+    iy.append(1)
+    logy.append(True)
+    normvals.append(normh0eta)
+    
+    # h0pr
+    minv = 0
+    maxv = normh0pr.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('h0pr')
+    xlabels.append(r'h$_0$ fraction')
+    ylabels.append('Driving pressure ratio')
+    ix.append(8)
+    logx.append(False)
+    iy.append(2)
+    logy.append(False)
+    normvals.append(normh0pr)
+    
+    # h0ewl
+    minv = 0
+    maxv = normh0wl.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('h0wl')
+    xlabels.append(r'h$_0$ fraction')
+    ylabels.append('Aspect ratio')
+    ix.append(8)
+    logx.append(False)
+    iy.append(3)
+    logy.append(False)
+    normvals.append(normh0wl)
+    
+    # h0flux
+    minv = 0
+    maxv = normh0flux.max()
+    levels.append(np.linspace(minv, maxv, totmaxhist+1))
+    Z.append(np.array([[0,0],[0,0],[0,0]]))
+    name.append('h0flux')
+    xlabels.append(r'h$_0$ fraction')
+    ylabels.append(r'Volume flux (m$^3$/s)')
+    ix.append(8)
+    logx.append(False)
+    iy.append(4)
+    logy.append(True)
+    normvals.append(normh0flux)
     
 
     for cmap in pdfcmap:
@@ -718,12 +862,12 @@ def setpdfcmaps(model_dir, pdfcmap, letter, Lin, etain, prin, wlin, fluxin,
                 linopt.append(['k-.','k--','black','ko'])
         
         mkpdffigs(model_dir, letter, cmap, linopt, cmap2, CS, ix, iy, inmin,
-                  inmax, invals, normvals, xlabels, ylabels, name)
+                  inmax, invals, normvals, xlabels, ylabels, name, logx, logy)
 
 # ----------------------------------------------------------------------------
 # def mkpdffigs(rep_cnt,repeat,weight_opt,curcmap,linopt,cmap2,CS33,CS22,newvin,newpin,newzin,newvinD,normvh,normph,vmin,vmax,instpd,dobs,wsig,maxz_m,abc,run,SAVEF,maxlineDISP,maxline,cutpin,pmin,pmax):
 def mkpdffigs(model_dir, letter, cmap, linopt, cmap2, CS, ix, iy, inmin,
-              inmax, invals, normvals, xlabels, ylabels, name):
+              inmax, invals, normvals, xlabels, ylabels, name, logx, logy):
 
     for i, cm2 in enumerate(cmap2):
         print("Working on figure {} using cmap {}: {}".format(i, cmap, name[i]))
@@ -733,7 +877,11 @@ def mkpdffigs(model_dir, letter, cmap, linopt, cmap2, CS, ix, iy, inmin,
         cb = plt.colorbar(CS[i])
         plt.axis([inmin[ix[i]], inmax[ix[i]], inmin[iy[i]], inmax[iy[i]]])
         plt.xlabel(xlabels[i])
+        if logx[i]:
+            plt.xscale('log')
         plt.ylabel(ylabels[i])
+        if logy[i]:
+            plt.yscale('log')
 
         Mfig = model_dir + letter + '_' + cmap + '_' + name[i] + '.png'
         P.savefig(Mfig)

@@ -9,16 +9,18 @@ import tremor
 import os
 import string
 from MCMC_functions import (fhist, pdhist, amphist, Rhist, Lhist, etahist,
-                            prhist, wlhist, pdfdiscrtze, setpdfcmaps, fluxhist)
+                            prhist, wlhist, pdfdiscrtze, setpdfcmaps, fluxhist,
+                            h0hist)
 
-model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run4/saved_models/"
+model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run5/saved_models/"
+# model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/11_30_2019_09_16_0033/saved_models/"
 fmin = 0.0
 fmax = 1.0
 nfbins = 25
 pmin = 0.5
 pmax = 25.5
 npbins = 25
-amin = 0.5e-9
+amin = 0.
 amax = 8.5e-9
 nabins = 25
 Rmin = 0.5
@@ -35,8 +37,19 @@ prmax = 1.2
 nprbins = 20
 wlmin = 5.0
 wlmax = 100.0
-nwlbins = 47
+nwlbins = 50
+h0min = 0.90
+h0max = 1.00
+nh0bins = 20
 
+# Set downselect parameters if desired
+ifDownselect = True
+ifFreqselect = True
+fselectmin = 0.2
+fselectmax = 0.6
+ifRselect = True
+Rselectmin = 0.8
+Rselectmax = 1.1
 
 model_pkls = []
 for root, dirs, files in os.walk(model_dir):
@@ -70,6 +83,19 @@ for i in range(nletters):
     for pklfile in tqdm(pkl_separate[i]):
         with open(pklfile, 'rb') as file:
             models.append(pickle.load(file))
+    models = np.array(models)
+
+    # Down select models by desired criteria
+    nmodels = len(models)
+    if ifDownselect:
+        if ifFreqselect:
+            freqs = np.array([model.f[0] for model in models])
+            models = models[np.logical_and(freqs > fselectmin,
+                                           freqs < fselectmax)]
+        if ifRselect:
+            Rs = np.array([model.dpre[2] for model in models])
+            models = models[np.logical_and(Rs > Rselectmin, Rs < Rselectmax)]
+        print("Models downselected from {} to {}".format(nmodels, len(models)))
     nmodels = len(models)
 
     # First plot up predicted observations
@@ -88,11 +114,13 @@ for i in range(nletters):
     etas = np.array([model.eta[0] for model in models])
     prs = np.array([model.pratio for model in models])
     wls = np.array([model.wl for model in models])
+    h0s = np.array([model.h0_frac for model in models])
 
     Lhist(model_dir, all_letters[i], Lmin, Lmax, nLbins, Ls)
     etahist(model_dir, all_letters[i], etamin, etamax, netabins, etas)
     prhist(model_dir, all_letters[i], prmin, prmax, nprbins, prs)
     wlhist(model_dir, all_letters[i], wlmin, wlmax, nwlbins, wls)
+    h0hist(model_dir, all_letters[i], h0min, h0max, nh0bins, h0s)
 
     # Add in some flux estimates
     for model in models:
@@ -105,19 +133,23 @@ for i in range(nletters):
     
     # Make 2D pdf plots
     pdfcmaps = ('GREYS', 'HOT')
-    (Lin, etain, prin, wlin, fluxin, freqin, ampin, Rin, Leta,
+    (Lin, etain, prin, wlin, fluxin, freqin, ampin, Rin, h0in, Leta,
      Lpr, Lwl, etapr, etawl, prwl,
      Lflux, etaflux, prflux, wlflux, freqamp, freqR, ampR,
+     h0eta, h0pr, h0wl, h0flux,
      normLeta, normLpr, normLwl,
      normetapr, normetawl, normprwl, normLflux, normetaflux,
      normprflux, normwlflux, normfreqamp,
-     normfreqR, normampR) = pdfdiscrtze(nmodels, models, Lmin, Lmax,
-                                        etamin, etamax, prmin, prmax,
-                                        wlmin, wlmax, fluxmin, fluxmax, fmin,
-                                        fmax, amin, amax, Rmin, Rmax)
+     normfreqR, normampR, normh0eta, normh0pr,
+     normh0wl, normh0flux) = pdfdiscrtze(nmodels, models, Lmin, Lmax,
+                                          etamin, etamax, prmin, prmax,
+                                          wlmin, wlmax, fluxmin, fluxmax, fmin,
+                                          fmax, amin, amax, Rmin, Rmax, h0min,
+                                          h0max)
     setpdfcmaps(model_dir, pdfcmaps, all_letters[i], Lin, etain, prin, wlin,
-                fluxin, freqin, ampin, Rin, normLeta, normLpr, normLwl,
+                fluxin, freqin, ampin, Rin, h0in, normLeta, normLpr, normLwl,
                 normetapr, normetawl, normprwl, normLflux, normetaflux,
                 normprflux, normwlflux, normfreqamp, normfreqR, normampR,
+                normh0eta, normh0pr, normh0wl, normh0flux,
                 Lmin, Lmax, etamin, etamax, prmin, prmax, wlmin, wlmax, fluxmin,
-                fluxmax, fmin, fmax, amin, amax, Rmin, Rmax)
+                fluxmax, fmin, fmax, amin, amax, Rmin, Rmax, h0min, h0max)
