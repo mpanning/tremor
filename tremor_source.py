@@ -30,7 +30,7 @@ pratio = 1.01
 mu = 7.e9
 rho = 2.7e3
 L = 200.
-aspect_ratio = 7.
+aspect_ratio = 12.5
 width = L*aspect_ratio
 eta = 10.0
 
@@ -58,14 +58,36 @@ model.set_eta(eta)
 model.calc_R()
 model.calc_f()
 
+print("R: ", model.R)
+
 # Calculate the crack motions
-tmax = 2000.0
+tmax = 1000.0
 tremordt = 0.1
 vi = 0.0
 hi = 1.0
 ui = 0.0
 w0 = [vi, hi, ui]
 tarray, wsol = model.generate_tremor(tmax, tremordt, w0)
+
+fig = plt.figure()
+plt.plot(tarray, wsol[0,:,0])
+plt.xlim((0, tmax))
+plt.savefig("tremor_v.png")
+plt.close(fig)
+
+fig = plt.figure()
+plt.plot(tarray, wsol[0,:,1])
+plt.xlim((0, tmax))
+plt.xlabel("Time (s)")
+plt.ylabel("h (m)")
+plt.savefig("tremor_h.png")
+plt.close(fig)
+
+fig = plt.figure()
+plt.plot(tarray, wsol[0,:,2])
+plt.xlim((0, tmax))
+plt.savefig("tremor_u.png")
+plt.close(fig)
 
 # Taper tremor time series and calculate moments
 taper_frac = 0.02
@@ -93,7 +115,16 @@ source.sliprate /= np.trapz(np.absolute(source.sliprate), dx=source.dt)
 fig = plt.figure()
 plt.plot(np.arange(0, len(source.sliprate)*source.dt, source.dt),
          source.sliprate)
+plt.xlim((0, tmax))
+plt.xlabel("Time (s)")
+plt.ylabel("Normalized wall velocity")
 plt.savefig("sliprate.png")
+plt.close(fig)
+
+fig = plt.figure()
+plt.plot(tarray[:-1], model.h[0])
+plt.xlim((0, tmax))
+plt.savefig("model_h.png")
 plt.close(fig)
 
 receiver = instaseis.Receiver(latitude=rlat, longitude=rlon, network='XB',
