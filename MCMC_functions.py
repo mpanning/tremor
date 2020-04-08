@@ -257,17 +257,19 @@ def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
     figname = dir + letter + '_Rhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
-def Lhist(dir, letter, Lmin, Lmax, nLbins, Ls):
+def Lhist(dir, letter, Lmin, Lmax, nLbins, Ls, ylims=None):
     plt.close('all')
     P.figure
     weights = np.ones_like(Ls)/float(len(Ls))
     P.hist(Ls, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights)
     plt.xlabel(r'Channel length (m)')
     plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
     figname = dir + letter + '_Lhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
-def etahist(dir, letter, etamin, etamax, netabins, etas):
+def etahist(dir, letter, etamin, etamax, netabins, etas, ylims=None):
     plt.close('all')
     P.figure
     weights = np.ones_like(etas)/float(len(etas))
@@ -276,6 +278,8 @@ def etahist(dir, letter, etamin, etamax, netabins, etas):
     plt.xlabel(r'Fluid viscosity (Pa s)')
     plt.xscale('log')
     plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
     figname = dir + letter + '_etahist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
@@ -299,17 +303,19 @@ def wlhist(dir, letter, wlmin, wlmax, nwlbins, wls):
     figname = dir + letter + '_wlhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
-def h0hist(dir, letter, h0min, h0max, nh0bins, h0s):
+def h0hist(dir, letter, h0min, h0max, nh0bins, h0s, ylims=None):
     plt.close('all')
     P.figure
     weights = np.ones_like(h0s)/float(len(h0s))
     P.hist(h0s, bins= np.linspace(h0min, h0max, nh0bins), weights=weights)
     plt.xlabel(r'h$_0$ fraction')
     plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
     figname = dir + letter + '_h0hist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
-def fluxhist(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs):
+def fluxhist(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs, ylims=None):
     plt.close('all')
     P.figure
     weights = np.ones_like(fluxs)/float(len(fluxs))
@@ -318,6 +324,8 @@ def fluxhist(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs):
     plt.xlabel(r'Volume flux (m$^3$/s)')
     plt.xscale('log')
     plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
     figname = dir + letter + '_fluxhist.png'
     P.savefig(figname)
 

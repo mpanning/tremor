@@ -12,8 +12,8 @@ from MCMC_functions import (fhist, pdhist, amphist, Rhist, Lhist, etahist,
                             prhist, wlhist, pdfdiscrtze, setpdfcmaps, fluxhist,
                             h0hist)
 
-model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run5/saved_models/"
-# model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/11_30_2019_09_16_0033/saved_models/"
+# model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/halo/run5/saved_models/"
+model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/gattaca/TAYAK1/04_07_2020_16_09_0033/saved_models/"
 fmin = 0.0
 fmax = 1.0
 nfbins = 25
@@ -116,11 +116,25 @@ for i in range(nletters):
     wls = np.array([model.wl for model in models])
     h0s = np.array([model.h0_frac for model in models])
 
-    Lhist(model_dir, all_letters[i], Lmin, Lmax, nLbins, Ls)
-    etahist(model_dir, all_letters[i], etamin, etamax, netabins, etas)
+    # Set the ylims for some plots if desired
+    ifylims = False
+    if (ifylims):
+        Lylims = (0.0, 0.28)
+        etaylims = (0.0, 0.055)
+        h0ylims = (0.0, 0.35)
+        fluxylims = (0.0, 0.07)
+    else:
+        Lylims = None
+        etaylims = None
+        h0ylims = None
+        fluxylims = None
+
+    Lhist(model_dir, all_letters[i], Lmin, Lmax, nLbins, Ls, ylims=Lylims)
+    etahist(model_dir, all_letters[i], etamin, etamax, netabins, etas,
+            ylims=etaylims)
     prhist(model_dir, all_letters[i], prmin, prmax, nprbins, prs)
     wlhist(model_dir, all_letters[i], wlmin, wlmax, nwlbins, wls)
-    h0hist(model_dir, all_letters[i], h0min, h0max, nh0bins, h0s)
+    h0hist(model_dir, all_letters[i], h0min, h0max, nh0bins, h0s, ylims=h0ylims)
 
     # Add in some flux estimates
     for model in models:
@@ -129,7 +143,8 @@ for i in range(nletters):
     fluxmax = np.amax(fluxs)
     fluxmin = np.amin(fluxs)
     nfluxbins = 50
-    fluxhist(model_dir, all_letters[i], fluxmin, fluxmax, nfluxbins, fluxs)
+    fluxhist(model_dir, all_letters[i], fluxmin, fluxmax, nfluxbins, fluxs,
+             ylims=fluxylims)
     
     # Make 2D pdf plots
     pdfcmaps = ('GREYS', 'HOT')

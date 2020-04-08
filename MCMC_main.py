@@ -124,12 +124,29 @@ if ifInstaseis:
 # Scaling parameters
 # Assume a power law scaling to estimated seismic moment: A = c0*M0^alpha
 # Parameters are estimated from regression of numbers from amp_scaling.py
+# These are the first set of parameters based on picking around amplitude peak
+# which is related to surface waves.  
 # Parameters for EH45Tcold
 # c0 = 3.523e-19
 # alpha = 0.607
 # Parameters for EH45Tcold_crust1b
-c0 = 6.0e-19
-alpha = 0.632
+# c0 = 6.0e-19
+# alpha = 0.632
+# We reworked this to use rms amplitude of the body wave window between P and SS
+# In this case, there appears to be a larger dependence on depth, so a different
+# value is used for the different depths
+# DWAK
+# c0 = [1.186e-19, 1.325e-20]
+# alpha = [0.603, 0.727]
+# TAYAK
+c0 = [1.132e-19, 9.116e-21]
+alpha = [0.608, 0.740]
+# EH45Tcold
+# c0 = [5.294e-22, 8.095e-23]
+# alpha = [0.687, 0.789]
+# EH45TcoldCrust1b
+# c0 = [2.626e-19, 1.280e-20]
+# alpha = [0.575, 0.720]
 
 
 # Make data vector.  Right now is hard-coded, but may adjust to read from file
@@ -199,7 +216,7 @@ doptnum = len(depopt)
 # numrun = doptnum*repeat
 numrun = doptnum
 
-boss = np.zeros((numrun, 2))
+boss = np.zeros((numrun, 4))
 k=0
 for i, dep in enumerate(depopt):
         if ifVerbose:
@@ -214,6 +231,8 @@ for i, dep in enumerate(depopt):
         abc.append(all_letters[i])
         boss[i, 0] = dep
         boss[i, 1] = muopt[i]
+        boss[i, 2] = c0[i]
+        boss[i, 3] = alpha[i]
 
 reprunsPHI = []
 reprunsdiagCE = []
@@ -253,13 +272,18 @@ os.mkdir(SAVEF)
 bossfile = open(SAVEMs+'/boss.txt', 'w')
 bossfile.write(now.strftime("%m_%d_%Y, %H:%M")+'\n')
 bossfile.write('   ' + '\n')
-bossfile.write('Depth of source (km)   Mu at source depth (Pa)\n')
+bossfile.write('Depth of source (km)   Mu at source depth (Pa)   ' +
+               'Amp c0                 Amp alpha              \n')
 k=0
 while (k < numrun):
         # maxdepth = boss[k,1]
         depth = boss[k, 0]
         mu = boss[k, 1]
-        writestring = "          {:6.2f}              {:e}\n".format(depth, mu)
+        c0run = boss[k, 2]
+        alpharun = boss[k, 3]
+        writestring = ("          {:6.2f}              {:e}".format(depth, mu) +
+                       "   {:7.3g}             {:6.3f}\n".format(c0run,
+                                                                 alpharun))
         bossfile.write(writestring)
         k = k + 1
 bossfile.write('   ' + '\n')
@@ -293,6 +317,8 @@ for run in range(numrun):
         # --------------------------Set up MODEL information-----------------
         boss0 = boss[run,0]
         boss1 = boss[run,1]
+        boss2 = boss[run,2]
+        boss3 = boss[run,3]
 
         # Set parameter bounds
         Lmin = 1.0
@@ -440,7 +466,8 @@ for run in range(numrun):
                         vamp = np.sqrt(np.mean(st[0].data[i1:i2]**2))
                 else:
                         M0 = m0_total[0]
-                        vamp = c0*math.pow(M0, alpha)
+                        # vamp = c0*math.pow(M0, alpha)
+                        vamp = boss2*math.pow(M0, boss3)
                         # raise NotImplementedError("Amplitude by scaling is " +
                         #                           "not yet implemented")
                 
@@ -775,7 +802,8 @@ for run in range(numrun):
                                 # print("Amp stuff {} {} {} {:.1f} {:.3E}".format(imax, i1, i2, dur_pre, vamp))
                         else:
                                 M0 = m0_total[0]
-                                vamp = c0 * math.pow(M0, alpha)
+                                # vamp = c0 * math.pow(M0, alpha)
+                                vamp = boss2 * math.pow(M0, boss3)
                                 # raise NotImplementedError("Amplitude by scaling is " +
                                 #                           "not yet implemented")
                         # dpre[:, k+1] = np.array([x.f[0], vamp, x.R[0]])

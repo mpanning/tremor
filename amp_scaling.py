@@ -18,9 +18,20 @@ symbols = ['ro', 'bo', 'go', 'ko']
 lines = ['r-', 'b-', 'g-', 'k-']
 verbose = False
 
+# Parameter to set a time range for the seismograms to remove surface wave energy
+# Only used if iftrange == True
+iftrange = True
+# trange = [250., 560.] #TAYAK range
+# trange = [240., 456.] #EH45Tcold range
+# trange = [244., 505.] #EH45TcoldCrust1b range
+trange = [250., 557.] #DWAK range
+# Currently chosen to analyze range between P and SS arival times
+
 # db_short = "EH45TcoldCrust1b"
 # Instaseis parameters
-db_short = "EH45Tcold"
+# db_short = "EH45Tcold"
+# db_short = "TAYAK"
+db_short = "DWAK"
 instaseisDB = "http://instaseis.ethz.ch/blindtest_1s/{}_1s/".format(db_short)
 maxRetry = 25
 db = instaseis.open_db(instaseisDB)
@@ -33,7 +44,9 @@ dbnpts = db.info['npts']
 # Tremor parameters Should define a way to set this from a file or command line
 # depth_in_km = 6.0
 # depth = 1.e3*depth_in_km
-depths = [2000., 6000., 60000.]
+# depths = [2000., 6000., 60000.]
+depths = [6000., 60000.]
+mus = [7.e9, 70.e9]
 # depths = [2000.]
 # pratio = 1.01
 pratios = [1.001, 1.01, 1.10]
@@ -47,11 +60,11 @@ wls = [5., 15., 50.]
 # width = L*aspect_ratio
 # Test a range of eta to get different behaviors
 # n_eta = 10
-n_eta = 5
+n_eta = 8
 eta = np.zeros(n_eta)
-eta[0] = 0.1
+eta[0] = 0.01
 for i in range(1,len(eta)):
-    eta[i] = eta[i-1] * 2.5
+    eta[i] = eta[i-1] * 5
 
 
 
@@ -92,7 +105,7 @@ for i, depth in enumerate(depths):
                 # Do tremor calculations
                 width = wl*L
                 model = tremor.TremorModel(depth=depth, L=L, pratio=pratio,
-                                           width=width)
+                                           width=width, mu=mus[i])
                 model.calc_derived()
                 model.set_eta(eta)
                 model.calc_R()
@@ -164,13 +177,19 @@ for i, depth in enumerate(depths):
 
 # Make some plots
 vamps = []
+if iftrange:
+    delta = sts[0][0][0].stats['delta']
+    i1 = int(trange[0]/delta)
+    i2 = int(trange[1]/delta)
+    
 for i in range(len(depths)):
     # vamps.append(np.array([np.sqrt(np.mean(st[0].data**2)) for st in sts[i]]))
     vamps.append([])
     for j in range(len(sts[i])):
-        imax = np.where(sts[i][j][0].data == sts[i][j][0].data.max())[0][0]
-        i1 = max(imax - int(50.0/dbdt), 0)
-        i2 = min(imax + int(durs[i][j]/dbdt), len(sts[i][j][0].data))
+        if (not iftrange):
+            imax = np.where(sts[i][j][0].data == sts[i][j][0].data.max())[0][0]
+            i1 = max(imax - int(50.0/dbdt), 0)
+            i2 = min(imax + int(durs[i][j]/dbdt), len(sts[i][j][0].data))
         vamps[i].append(np.sqrt(np.mean(sts[i][j][0].data[i1:i2]**2)))
         # Pick 50 s before and go to duration for RMS calculation
     vamps[i] = np.array(vamps[i])
