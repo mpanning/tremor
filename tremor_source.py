@@ -11,9 +11,9 @@ import tremor
 import timeit
 
 start_time = timeit.default_timer()
-db_short = "EH45TcoldCrust1b"
+# db_short = "EH45TcoldCrust1b"
 # Instaseis parameters
-# db_short = "TAYAK"
+db_short = "TAYAK"
 instaseisDB = "http://instaseis.ethz.ch/blindtest_1s/{}_1s/".format(db_short)
 maxRetry = 25
 db = instaseis.open_db(instaseisDB)

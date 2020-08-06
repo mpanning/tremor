@@ -150,9 +150,20 @@ alpha = [0.687, 0.789]
 
 
 # Make data vector.  Right now is hard-coded, but may adjust to read from file
-freq_obs = 0.35 # Dominant frequency of signal (Hz)
+# New ampltiude estimates based on peak amplitude in body wave window after
+# filtering to region with SNR > 1
+# evt 0 is S0105a, while evt 1 is S0189a
+# Amplitude picked between 0.2 and 0.6 Hz for s0105a, and
+# between 0.4 and 0.9 Hz for S0189a
+# Amplitude is picked on acceleration traces as the peak to 2 significant
+# figures
+fobs_vector = [0.35, 0.6]
+ampobs_vector = [1.5e-9, 1.4e-9]
+evt_select = 1
+
+freq_obs = fobs_vector[evt_select] # Dominant frequency of signal (Hz)
 period_obs = 1./freq_obs
-amp_obs = 1.5e-9 # Acceleration amplitude (m/s^2)
+amp_obs = ampobs_vector[evt_select] # Acceleration amplitude (m/s^2)
 # dur_obs = 1000.0 # Duration of observed signal (s)
 # Instead of unstable dur measurement, just use R value instead
 # dobs = np.array([freq_obs, amp_obs])

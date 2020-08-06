@@ -227,11 +227,40 @@ def fhist(dir, letter, fmin, fmax, nfbins, freqs):
     P.savefig(figname)
 
 # ----------------------------------------------------------------------------
+def fhist_combined(dir, letter, fmin, fmax, nfbins, freqs1, freqs2):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(freqs1)/float(len(freqs1))
+    weights2 = np.ones_like(freqs2)/float(len(freqs2))
+    plt.hist(freqs1, bins= np.linspace(fmin, fmax, nfbins), weights=weights1,
+             edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    plt.hist(freqs2, bins= np.linspace(fmin, fmax, nfbins), weights=weights2,
+             edgecolor='k', ls='dashed', lw=1, fc=(0, 0, 1, 0.5))
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Probability density')
+    figname = dir + letter + '_fhist.png'
+    P.savefig(figname)
+
+# ----------------------------------------------------------------------------
 def pdhist(dir, letter, pmin, pmax, npbins, pds):
     plt.close('all')
     P.figure
     weights = np.ones_like(pds)/float(len(pds))
     P.hist(pds, bins= np.linspace(pmin, pmax, npbins), weights=weights)
+    plt.xlabel('Period (s)')
+    plt.ylabel('Probability density')
+    figname = dir + letter + '_pdhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def pdhist_combined(dir, letter, pmin, pmax, npbins, pds1, pds2):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(pds1)/float(len(pds1))
+    weights2 = np.ones_like(pds2)/float(len(pds2))
+    plt.hist(pds1, bins= np.linspace(pmin, pmax, npbins), weights=weights1,
+             edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    plt.hist(pds2, bins= np.linspace(pmin, pmax, npbins), weights=weights2,
+             edgecolor='k', ls='dashed', lw=1, fc=(0, 0, 1, 0.5))
     plt.xlabel('Period (s)')
     plt.ylabel('Probability density')
     figname = dir + letter + '_pdhist.png'
@@ -247,6 +276,20 @@ def amphist(dir, letter, amin, amax, nabins, amps):
     figname = dir + letter + '_amphist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
+def amphist_combined(dir, letter, amin, amax, nabins, amps1, amps2):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(amps1)/float(len(amps1))
+    weights2 = np.ones_like(amps2)/float(len(amps2))
+    plt.hist(amps1, bins= np.linspace(amin, amax, nabins), weights=weights1,
+             edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    plt.hist(amps2, bins= np.linspace(amin, amax, nabins), weights=weights2,
+             edgecolor='k', ls='dashed', lw=1, fc=(0, 0, 1, 0.5))
+    plt.xlabel(r'Amplitude (m/s$^2$)')
+    plt.ylabel('Probability density')
+    figname = dir + letter + '_amphist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
 def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
     plt.close('all')
     P.figure
@@ -257,11 +300,41 @@ def Rhist(dir, letter, Rmin, Rmax, nRbins, Rs):
     figname = dir + letter + '_Rhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
+def Rhist_combined(dir, letter, Rmin, Rmax, nRbins, Rs1, Rs2):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(Rs1)/float(len(Rs1))
+    weights2 = np.ones_like(Rs2)/float(len(Rs2))
+    plt.hist(Rs1, bins= np.linspace(Rmin, Rmax, nRbins), weights=weights1,
+             edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    plt.hist(Rs2, bins= np.linspace(Rmin, Rmax, nRbins), weights=weights2,
+             edgecolor='k', ls='dashed', lw=1, fc=(0, 0, 1, 0.5))
+    plt.xlabel(r'R value')
+    plt.ylabel('Probability density')
+    figname = dir + letter + '_Rhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
 def Lhist(dir, letter, Lmin, Lmax, nLbins, Ls, ylims=None):
     plt.close('all')
     P.figure
     weights = np.ones_like(Ls)/float(len(Ls))
     P.hist(Ls, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights)
+    plt.xlabel(r'Channel length (m)')
+    plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
+    figname = dir + letter + '_Lhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def Lhist_combined(dir, letter, Lmin, Lmax, nLbins, Ls1, Ls2, ylims=None):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(Ls1)/float(len(Ls1))
+    weights2 = np.ones_like(Ls2)/float(len(Ls2))
+    P.hist(Ls1, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights1,
+           edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    P.hist(Ls2, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights2,
+           edgecolor='k', ls='dashed', lw=1, fc=(0, 0, 1, 0.5))
     plt.xlabel(r'Channel length (m)')
     plt.ylabel('Probability density')
     if (ylims is not None):
@@ -283,6 +356,27 @@ def etahist(dir, letter, etamin, etamax, netabins, etas, ylims=None):
     figname = dir + letter + '_etahist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
+def etahist_combined(dir, letter, etamin, etamax, netabins, etas1, etas2,
+                     ylims=None):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(etas1)/float(len(etas1))
+    weights2 = np.ones_like(etas2)/float(len(etas2))
+    P.hist(etas1, bins= np.logspace(math.log10(etamin), math.log10(etamax),
+                                    netabins),
+           weights=weights1, edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    P.hist(etas2, bins= np.logspace(math.log10(etamin), math.log10(etamax),
+                                    netabins),
+           weights=weights2, edgecolor='k', ls='dashed', lw=1,
+           fc=(0, 0, 1, 0.5))
+    plt.xlabel(r'Fluid viscosity (Pa s)')
+    plt.xscale('log')
+    plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
+    figname = dir + letter + '_etahist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
 def prhist(dir, letter, prmin, prmax, nprbins, prs):
     plt.close('all')
     P.figure
@@ -293,6 +387,22 @@ def prhist(dir, letter, prmin, prmax, nprbins, prs):
     figname = dir + letter + '_prhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
+def prhist_combined(dir, letter, prmin, prmax, nprbins, prs1, prs2, ylims=None):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(prs1)/float(len(prs1))
+    weights2 = np.ones_like(prs2)/float(len(prs2))
+    P.hist(prs1, bins= np.linspace(prmin, prmax, nprbins), weights=weights1,
+           edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    P.hist(prs2, bins= np.linspace(prmin, prmax, nprbins), weights=weights2,
+           edgecolor='k', ls='dashed', lw=1, fc=(0, 0, 1, 0.5))
+    plt.xlabel(r'Driving pressure ratio')
+    plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
+    figname = dir + letter + '_prhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
 def wlhist(dir, letter, wlmin, wlmax, nwlbins, wls):
     plt.close('all')
     P.figure
@@ -300,6 +410,22 @@ def wlhist(dir, letter, wlmin, wlmax, nwlbins, wls):
     P.hist(wls, bins= np.linspace(wlmin, wlmax, nwlbins), weights=weights)
     plt.xlabel(r'Aspect ratio')
     plt.ylabel('Probability density')
+    figname = dir + letter + '_wlhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def wlhist_combined(dir, letter, wlmin, wlmax, nwlbins, wls1, wls2, ylims=None):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(wls1)/float(len(wls1))
+    weights2 = np.ones_like(wls2)/float(len(wls2))
+    P.hist(wls1, bins= np.linspace(wlmin, wlmax, nwlbins), weights=weights1,
+           edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    P.hist(wls2, bins= np.linspace(wlmin, wlmax, nwlbins), weights=weights2,
+           edgecolor='k', ls='dashed', lw=1, fc=(0, 0, 1, 0.5))
+    plt.xlabel(r'Aspect ratio')
+    plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
     figname = dir + letter + '_wlhist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
@@ -315,12 +441,49 @@ def h0hist(dir, letter, h0min, h0max, nh0bins, h0s, ylims=None):
     figname = dir + letter + '_h0hist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
+def h0hist_combined(dir, letter, h0min, h0max, nh0bins, h0s1, h0s2, ylims=None):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(h0s1)/float(len(h0s1))
+    weights2 = np.ones_like(h0s2)/float(len(h0s2))
+    P.hist(h0s1, bins= np.linspace(h0min, h0max, nh0bins), weights=weights1,
+           edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    P.hist(h0s2, bins= np.linspace(h0min, h0max, nh0bins), weights=weights2,
+           edgecolor='k', ls='dashed', lw=1, fc=(0, 0, 1, 0.5))
+    plt.xlabel(r'h$_0$ fraction')
+    plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
+    figname = dir + letter + '_h0hist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
 def fluxhist(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs, ylims=None):
     plt.close('all')
     P.figure
     weights = np.ones_like(fluxs)/float(len(fluxs))
     P.hist(fluxs, bins= np.logspace(math.log10(fluxmin), math.log10(fluxmax),
                                     nfluxbins), weights=weights)
+    plt.xlabel(r'Volume flux (m$^3$/s)')
+    plt.xscale('log')
+    plt.ylabel('Probability density')
+    if (ylims is not None):
+        plt.ylim(ylims)
+    figname = dir + letter + '_fluxhist.png'
+    P.savefig(figname)
+# ----------------------------------------------------------------------------
+def fluxhist_combined(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs1, fluxs2,
+                      ylims=None):
+    plt.close('all')
+    P.figure
+    weights1 = np.ones_like(fluxs1)/float(len(fluxs1))
+    weights2 = np.ones_like(fluxs2)/float(len(fluxs2))
+    P.hist(fluxs1, bins= np.logspace(math.log10(fluxmin), math.log10(fluxmax),
+                                     nfluxbins),
+           weights=weights1, edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+    P.hist(fluxs2, bins= np.logspace(math.log10(fluxmin), math.log10(fluxmax),
+                                     nfluxbins),
+           weights=weights2, edgecolor='k', ls='dashed', lw=1,
+           fc=(0, 0, 1, 0.5))
     plt.xlabel(r'Volume flux (m$^3$/s)')
     plt.xscale('log')
     plt.ylabel('Probability density')
