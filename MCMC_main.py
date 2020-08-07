@@ -171,9 +171,9 @@ dobs = np.array([period_obs, amp_obs])
 ndata = len(dobs)
 
 # Uncertainty estimates - 1 sigma
-wsig_freq = 0.05
-wsig_period = 0.5
-wsig_amp = 1.e-9
+wsig_freq = 0.175 * freq_obs
+wsig_period = 0.175 * period_obs
+wsig_amp = 0.5e-9
 # wsig_dur = 300.
 # wsig = np.array([wsig_freq, wsig_amp])
 wsig = np.array([wsig_period, wsig_amp])
@@ -186,6 +186,7 @@ dobs = np.append(dobs, R_expected)
 ndata += 1
 wsig = np.append(wsig, R_sigma)
 
+print("Data vector" + str(dobs))
 # Use different h0 value
 h0_frac = 0.98 # Default in tremor.py is 0.95
 

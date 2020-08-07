@@ -12,8 +12,8 @@ from MCMC_functions import (fhist, pdhist, amphist, Rhist, Lhist, etahist,
                             prhist, wlhist, pdfdiscrtze, setpdfcmaps, fluxhist,
                             h0hist)
 
-model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/gattaca/EH45Tcold1/saved_models/"
-# model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/gattaca/TAYAK1/04_07_2020_16_09_0033/saved_models/"
+# model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/gattaca/EH45Tcold1/saved_models/"
+model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/08_06_2020_14_56_0033/saved_models/"
 fmin = 0.0
 fmax = 1.0
 nfbins = 25
