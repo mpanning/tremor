@@ -159,7 +159,7 @@ alpha = [0.687, 0.789]
 # figures
 fobs_vector = [0.35, 0.6]
 ampobs_vector = [1.5e-9, 1.4e-9]
-evt_select = 1
+evt_select = 0
 
 freq_obs = fobs_vector[evt_select] # Dominant frequency of signal (Hz)
 period_obs = 1./freq_obs
@@ -261,20 +261,31 @@ thetaPR = np.log(1.01) # Pressure ratio perturbatio
 thetaWL = np.log(1.10) # Using a log normal perturbation instead
 thetaH0 = 0.002
 
+thetaL_high = np.log(1.2)
+thetaETA_high = np.log(1.2)
+thetaPR_high = np.log(1.02)
+thetaWL_high = np.log(1.2)
+thetaH0_high = 0.01
+
+
 # Use higher values during burn-in time period if highburn True
 highburn = False
 if highburn:
-        thetaL_burn = np.log(1.2)
-        thetaETA_burn = np.log(1.2)
-        thetaPR_burn = np.log(1.02)
-        thetaWL_burn = np.log(1.2)
-        thetaH0_burn = 0.01
+        thetaL_burn = thetaL_high
+        thetaETA_burn = thetaETA_high
+        thetaPR_burn = thetaPR_high
+        thetaWL_burn = thetaWL_high
+        thetaH0_burn = thetaH0_high
 else:
         thetaL_burn = thetaL
         thetaETA_burn = thetaETA
         thetaPR_burn = thetaPR
         thetaWL_burn = thetaWL
         thetaH0_burn = thetaH0
+
+# Also set a limit of number of failed model generations before increasing
+# theta values to escape from traps on edge of model space
+maxkreject = 25
 # ---------------------------------------------------------------------------------------
 
 savefname = "saved_models"
@@ -519,6 +530,7 @@ for run in range(numrun):
                 # =============================================================
                 k = 0
                 while (k < (numm-1)):
+                        numkreject = 0
                         if ifVerbose:        
                                 print("=======================================")
                                 print("                   CHAIN # [" +
@@ -552,7 +564,9 @@ for run in range(numrun):
                                 if ifVerbose:
                                         print(DRAW[pDRAW])
 
-                                if k < BURN:
+                                if numkreject > maxkreject:
+                                        theta = thetaL_high
+                                elif k < BURN:
                                         theta = thetaL_burn
                                 else:
                                         theta = theta
@@ -590,7 +604,9 @@ for run in range(numrun):
                                 if ifVerbose:
                                         print(DRAW[pDRAW])
 
-                                if k < BURN:
+                                if numkreject > maxkreject:
+                                        theta = thetaETA_high
+                                elif k < BURN:
                                         theta = thetaETA_burn
                                 else:
                                         theta = thetaETA
@@ -625,7 +641,9 @@ for run in range(numrun):
                                 if ifVerbose:
                                         print(DRAW[pDRAW])
 
-                                if k < BURN:
+                                if numkreject > maxkreject:
+                                        theta = thetaPR_high
+                                elif k < BURN:
                                         theta = thetaPR_burn
                                 else:
                                         theta = thetaPR
@@ -662,7 +680,9 @@ for run in range(numrun):
                                 if ifVerbose:
                                         print(DRAW[pDRAW])
 
-                                if k < BURN:
+                                if numkreject > maxkreject:
+                                        theta = thetaWL_high
+                                elif k < BURN:
                                         theta = thetaWL_burn
                                 else:
                                         theta = thetaWL
@@ -698,7 +718,9 @@ for run in range(numrun):
                                 if ifVerbose:
                                         print(DRAW[pDRAW])
 
-                                if k < BURN:
+                                if numkreject > maxkreject:
+                                        theta = thetaH0_high
+                                elif k < BURN:
                                         theta = thetaH0_burn
                                 else:
                                         theta = thetaH0
@@ -754,6 +776,7 @@ for run in range(numrun):
                                               '! == ! == ! ==  ')
                                 del x
                                 numreject = numreject + 1
+                                numkreject = numkreject + 1
                                 drawnumreject[pDRAW] = drawnumreject[pDRAW] + 1
                                 continue
                                 # re-do iteration -- DO NOT increment (k)
@@ -845,6 +868,7 @@ for run in range(numrun):
                                 PHI[k+1] = PHI[k]
 
                                 numreject = numreject + 1
+                                numkreject = numkreject + 1
                                 drawnumreject[pDRAW] = drawnumreject[pDRAW] + 1
                                 # re-do iteration -- DO NOT increment (k)
                         else: 

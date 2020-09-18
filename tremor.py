@@ -264,7 +264,30 @@ class TremorModel(object):
 
     def calc_flux(self): # steady state volume flux of fluid hs*w*vs
         self.flux = self.hs*self.width*self.vs
-        
+
+    def calc_Reynolds(self):
+        """
+        Reynolds number is calculated assuming the characteristic length for 
+        rectangular pipes defined as 4*area/perimeter
+        """
+        self.Re = []
+        perimeter = 2.*(self.hs + self.width)
+        area = self.hs*self.width
+        self.Dh = 4.*area/perimeter
+        for val in self.eta:
+            self.Re.append(self.rho*self.vs*self.Dh/val)
+        self.Re = np.array(self.Re)
+
+    def calc_Re_crit(self):
+        """
+        Calculate ratio of L/Dh to Re to determine if flow is laminar
+        Assumes you've already run calc_Reynolds
+        """
+        self.Re_crit = []
+        for val in self.Re:
+            self.Re_crit.append((self.Dh*val)/self.L)
+        self.Re_crit = np.array(self.Re_crit)
+    
     def generate_tremor(self, duration, dt, w0):
         """
         Integrate the initial value problem to generate a time series of tremor

@@ -10,10 +10,10 @@ import os
 import string
 from MCMC_functions import (fhist, pdhist, amphist, Rhist, Lhist, etahist,
                             prhist, wlhist, pdfdiscrtze, setpdfcmaps, fluxhist,
-                            h0hist)
+                            h0hist, Rehist, Recrithist)
 
-# model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/gattaca/EH45Tcold1/saved_models/"
-model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/08_06_2020_14_56_0033/saved_models/"
+model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/gattaca/S0189a_TAYAK1/saved_models/"
+# model_dir = "/Users/panning/work_local/Insight/tremor/MCMC/08_06_2020_14_56_0033/saved_models/"
 fmin = 0.0
 fmax = 1.0
 nfbins = 25
@@ -45,8 +45,11 @@ nh0bins = 20
 # Set downselect parameters if desired
 ifDownselect = True
 ifFreqselect = True
-fselectmin = 0.2
-fselectmax = 0.6
+evtselect = 1
+fmins = [0.2, 0.3]
+fmaxs = [0.6, 0.9]
+fselectmin = fmins[evtselect]
+fselectmax = fmaxs[evtselect]
 ifRselect = True
 Rselectmin = 0.8
 Rselectmax = 1.1
@@ -136,15 +139,31 @@ for i in range(nletters):
     wlhist(model_dir, all_letters[i], wlmin, wlmax, nwlbins, wls)
     h0hist(model_dir, all_letters[i], h0min, h0max, nh0bins, h0s, ylims=h0ylims)
 
-    # Add in some flux estimates
+    # Add in some flux and Reynolds number estimates
     for model in models:
         model.calc_flux()
+        model.calc_Reynolds()
+        model.calc_Re_crit()
+        # print("{} {} {}".format(model.L, model.Dh, model.Re[0]))
     fluxs = np.array([model.flux[0] for model in models])
     fluxmax = np.amax(fluxs)
     fluxmin = np.amin(fluxs)
     nfluxbins = 50
     fluxhist(model_dir, all_letters[i], fluxmin, fluxmax, nfluxbins, fluxs,
              ylims=fluxylims)
+    Res = np.array([model.Re[0] for model in models])
+    # Remax = np.amax(Res)
+    # Remin = np.amin(Res)
+    Remax = 10000
+    Remin = 0
+    nRebins = 50
+    Rehist(model_dir, all_letters[i], Remin, Remax, nRebins, Res)
+    Recrits = np.array([model.Re_crit[0] for model in models])
+    Recritmax = np.amax(Recrits)
+    Recritmin = np.amin(Recrits)
+    nRecritbins = 50
+    Recrithist(model_dir, all_letters[i], Recritmin, Recritmax, nRecritbins,
+               Recrits)
     
     # Make 2D pdf plots
     pdfcmaps = ('GREYS', 'HOT')

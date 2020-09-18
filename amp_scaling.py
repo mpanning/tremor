@@ -22,16 +22,16 @@ verbose = False
 # Only used if iftrange == True
 iftrange = True
 # trange = [250., 560.] #TAYAK range
-# trange = [240., 456.] #EH45Tcold range
+trange = [240., 456.] #EH45Tcold range
 # trange = [244., 505.] #EH45TcoldCrust1b range
-trange = [250., 557.] #DWAK range
+# trange = [250., 557.] #DWAK range
 # Currently chosen to analyze range between P and SS arival times
 
 # db_short = "EH45TcoldCrust1b"
 # Instaseis parameters
-# db_short = "EH45Tcold"
+db_short = "EH45Tcold"
 # db_short = "TAYAK"
-db_short = "DWAK"
+# db_short = "DWAK"
 instaseisDB = "http://instaseis.ethz.ch/blindtest_1s/{}_1s/".format(db_short)
 maxRetry = 25
 db = instaseis.open_db(instaseisDB)
@@ -45,8 +45,8 @@ dbnpts = db.info['npts']
 # depth_in_km = 6.0
 # depth = 1.e3*depth_in_km
 # depths = [2000., 6000., 60000.]
-depths = [6000., 60000.]
-mus = [7.e9, 70.e9]
+depths = [6000., 60000., 90000.]
+mus = [7.e9, 70.e9, 70.e9]
 # depths = [2000.]
 # pratio = 1.01
 pratios = [1.001, 1.01, 1.10]

@@ -13,7 +13,7 @@ which python
 export PBS_O_WORKDIR=$directory
 cd $PBS_O_WORKDIR
 
-export STARTOFFSET=16
+export STARTOFFSET=0
 for i in {1..16}; do
     echo "Launching " $[i+$STARTOFFSET]
     echo python $program -d $directory -p $[i+$STARTOFFSET]
