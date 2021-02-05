@@ -9,5 +9,9 @@ The bulk of calculations are performed in the module `tremor.py`, while `tremor_
 
 `tremor_source.py` calculates the tremor model and then computes seismograms from the model using InstaSeis.
 
+Currently includes all codes used to calculate figures in the Kedar et al. (2020) revised paper on tremor modeling, although the documentation will be clarified and the codes slightly cleaned up to correctly reference the subdirectory structure before the final archived version is included with an accepted paper.
+
+The models derived in the Bayesian MCMC codes are all stored compressed in xz format in the `models` subdirectory.  xz is open source, freely available compression software more efficient than the standard gzip used to create tar.gz files, which was required to keep file sizes under the 100 MB github limit.
+
 ## References
 [B.R. Julian (1994) Volcanic tremor: Nonlinear excitation by fluid flow, J. Geophys. Res., 99, B6, 11859-11877, doi: /10.1029/93JB03129](https://doi.org/10.1029/93JB03129)
