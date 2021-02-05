@@ -20,7 +20,7 @@ All figures displaying the modeling results (and many more possible parameter co
 The amplitude scaling figures are produced with the code `amp_scaling.py`, which requires a working installation of the python Instaseis package, and accesses and online waveform database located at http://instaseis.ethz.ch/blindtest_1s which was developed for the InSight Marsquake Service blindtest (Clinton et al., 2017, Ceylan et al., 2017).
 
 ## References
-[S. Ceylan et al. (2017) From Initial Models of Seismicity, Structure and Noise to Synthetic Seismograms for Mars, Space Sci. Rev., 211, 595-610, doi: 10.1007/s11214-017-0380-6](https://doi.org/ 10.1007/s11214-017-0380-6)
+[S. Ceylan et al. (2017) From Initial Models of Seismicity, Structure and Noise to Synthetic Seismograms for Mars, Space Sci. Rev., 211, 595-610, doi: 10.1007/s11214-017-0380-6](https://doi.org/10.1007/s11214-017-0380-6)
 
 [J.F. Clinton et al. (2017) Preparing for InSight:  An invitation to participate in a blind test for Martian seismicity, Seis. Res. Lett., 88, 5, 1290-1302, doi: 10.1785/0220170094](https://doi.org/10.1785/0220170094)
 
