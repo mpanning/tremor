@@ -1,5 +1,5 @@
 # tremor
-Python implementation of tremor modeling based on Julian (1994).
+Python implementation of tremor modeling based on Julian (1994).  All code is free to use under the GPLv3 license (see `LICENSE` file)
 
 The bulk of calculations are performed in the module `tremor.py`, while `tremor_test.py` calls the functions for a demonstration of the calculations.
 
