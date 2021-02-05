@@ -33,8 +33,8 @@ Rmin = 0.5
 Rmax = 1.3
 nRbins = 25
 Lmin = 1.0
-Lmax = 250.0
-nLbins = 25
+Lmax = 1000.0
+nLbins = 100
 etamin = 8.9e-4
 etamax = 1000.0
 netabins = 100
@@ -248,7 +248,7 @@ for i in range(nletters):
     # Set the ylims for some plots if desired
     ifylims = True
     if (ifylims):
-        Lylims = (0.0, 0.6)
+        Lylims = (0.0, 0.3)
         etaylims = (0.0, 0.06)
         h0ylims = (0.0, 0.4)
         fluxylims = (0.0, 0.12)

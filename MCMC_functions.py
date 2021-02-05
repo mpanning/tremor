@@ -434,13 +434,13 @@ def Lhist_combined4(dir, letter, Lmin, Lmax, nLbins, Ls1, Ls2, Ls3, Ls4,
     weights3 = np.ones_like(Ls3)/float(len(Ls3))
     weights4 = np.ones_like(Ls4)/float(len(Ls4))
     P.hist(Ls1, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights1,
-           edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+           edgecolor='k', lw=1, fc=(0.5, 0, 0, 0.8))
     P.hist(Ls2, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights2,
-           edgecolor='k', lw=1, fc=(0, 0, 1, 0.5))
+           edgecolor='k', lw=1, fc=(0, 0, 1, 0.8))
     P.hist(Ls3, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights3,
-           edgecolor='k', ls='dashed', lw=1, fc=(0, 1, 0, 0.5))
+           edgecolor='k', ls='dashed', lw=1, fc=(1, 0, 0, 0.8))
     P.hist(Ls4, bins= np.linspace(Lmin, Lmax, nLbins), weights=weights4,
-           edgecolor='k', ls='dashed', lw=1, fc=(0, 1, 1, 0.5))
+           edgecolor='k', ls='dashed', lw=1, fc=(0, 1, 1, 0.8))
     plt.xlabel(r'Channel length (m)', fontsize=18)
     plt.ylabel('Probability density', fontsize=18)
     if (ylims is not None):
@@ -472,23 +472,24 @@ def etahist_combined4(dir, letter, etamin, etamax, netabins, etas1, etas2, etas3
     weights4 = np.ones_like(etas4)/float(len(etas4))
     P.hist(etas1, bins= np.logspace(math.log10(etamin), math.log10(etamax),
                                     netabins),
-           weights=weights1, edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+           weights=weights1, edgecolor='k', lw=1, fc=(0.5, 0, 0, 0.8))
     P.hist(etas2, bins= np.logspace(math.log10(etamin), math.log10(etamax),
                                     netabins),
-           weights=weights2, edgecolor='k', lw=1, fc=(0, 0, 1, 0.5))
+           weights=weights2, edgecolor='k', lw=1, fc=(0, 0, 1, 0.8))
     P.hist(etas3, bins= np.logspace(math.log10(etamin), math.log10(etamax),
                                     netabins),
            weights=weights3, edgecolor='k', ls='dashed', lw=1,
-           fc=(0, 1, 0, 0.5))
+           fc=(1, 0, 0, 0.8))
     P.hist(etas4, bins= np.logspace(math.log10(etamin), math.log10(etamax),
                                     netabins),
            weights=weights4, edgecolor='k', ls='dashed', lw=1,
-           fc=(0, 1, 1, 0.5))
+           fc=(0, 1, 1, 0.8))
     plt.xlabel(r'Fluid viscosity (Pa s)', fontsize=18)
     plt.xscale('log')
     plt.ylabel('Probability density', fontsize=18)
     if (ylims is not None):
         plt.ylim(ylims)
+    #plt.tight_layout()
     figname = dir + letter + '_etahist.png'
     P.savefig(figname)
 # ----------------------------------------------------------------------------
@@ -648,13 +649,13 @@ def h0hist_combined4(dir, letter, h0min, h0max, nh0bins, h0s1, h0s2, h0s3,
     weights3 = np.ones_like(h0s3)/float(len(h0s3))
     weights4 = np.ones_like(h0s4)/float(len(h0s4))
     P.hist(h0s1, bins= np.linspace(h0min, h0max, nh0bins), weights=weights1,
-           edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+           edgecolor='k', lw=1, fc=(0.5, 0, 0, 0.8))
     P.hist(h0s2, bins= np.linspace(h0min, h0max, nh0bins), weights=weights2,
-           edgecolor='k', lw=1, fc=(0, 0, 1, 0.5))
+           edgecolor='k', lw=1, fc=(0, 0, 1, 0.8))
     P.hist(h0s3, bins= np.linspace(h0min, h0max, nh0bins), weights=weights3,
-           edgecolor='k', ls='dashed', lw=1, fc=(0, 1, 0, 0.5))
+           edgecolor='k', ls='dashed', lw=1, fc=(1, 0, 0, 0.8))
     P.hist(h0s4, bins= np.linspace(h0min, h0max, nh0bins), weights=weights4,
-           edgecolor='k', ls='dashed', lw=1, fc=(0, 1, 1, 0.5))
+           edgecolor='k', ls='dashed', lw=1, fc=(0, 1, 1, 0.8))
     plt.xlabel(r'h$_0$ fraction', fontsize=18)
     plt.ylabel('Probability density', fontsize=18)
     if (ylims is not None):
@@ -707,23 +708,24 @@ def fluxhist_combined4(dir, letter, fluxmin, fluxmax, nfluxbins, fluxs1, fluxs2,
     weights4 = np.ones_like(fluxs4)/float(len(fluxs4))
     P.hist(fluxs1, bins= np.logspace(math.log10(fluxmin), math.log10(fluxmax),
                                      nfluxbins),
-           weights=weights1, edgecolor='k', lw=1, fc=(1, 0, 0, 0.5))
+           weights=weights1, edgecolor='k', lw=1, fc=(0.5, 0, 0, 0.8))
     P.hist(fluxs2, bins= np.logspace(math.log10(fluxmin), math.log10(fluxmax),
                                      nfluxbins),
-           weights=weights2, edgecolor='k', lw=1, fc=(0, 0, 1, 0.5))
+           weights=weights2, edgecolor='k', lw=1, fc=(0, 0, 1, 0.8))
     P.hist(fluxs3, bins= np.logspace(math.log10(fluxmin), math.log10(fluxmax),
                                      nfluxbins),
            weights=weights3, edgecolor='k', ls='dashed', lw=1,
-           fc=(0, 1, 0, 0.5))
+           fc=(1, 0, 0, 0.8))
     P.hist(fluxs4, bins= np.logspace(math.log10(fluxmin), math.log10(fluxmax),
                                      nfluxbins),
            weights=weights4, edgecolor='k', ls='dashed', lw=1,
-           fc=(0, 1, 1, 0.5))
+           fc=(0, 1, 1, 0.8))
     plt.xlabel(r'Volume flux (m$^3$/s)', fontsize=18)
     plt.xscale('log')
     plt.ylabel('Probability density', fontsize=18)
     if (ylims is not None):
         plt.ylim(ylims)
+    #plt.tight_layout()
     figname = dir + letter + '_fluxhist.png'
     P.savefig(figname)
 
