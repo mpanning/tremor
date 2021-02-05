@@ -1,1 +1,3 @@
 This contains the model output from the Bayesian runs in the Kedar et al. (2021) tremor paper.  There are 4 runs compatible with the two events (S0189a and S0105a) and the two velocity models used to derive the amplitude scaling relationship.
+
+All directories are compressed with tar and xzip.
