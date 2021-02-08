@@ -44,4 +44,21 @@ alpha = [0.687, 0.789]
 
 where the two values are for the two different source depths considered (6 km and 60 km).  Switching between models is accomodating by uncommenting the appropriate block for c0 and alpha.
 
+Finally, the standard deviation for new model proposals needs to be defined for each parameter.  While all model chains are initiated by models generated from uniform porbabilities, we actually use a log-normal distibution for generation of model perturbations for all parameters except h0 fraction, which indicates a prior distribution that approaches log uniform for L, eta, pressure ratio, and aspect ratio, and approaches uniform for h0 fraction.  Here are the definitions for the standard deviations for model perturbations:
+
+```
+# Standard deviations for the Gaussian proposal distributions
+
+# Given that many of these vary over orders of magnitude, maybe should use
+# log value as input, and thus it becomes log-normal perturbation.  Consider
+# this and whether it should effect acceptance criteria
+thetaL = np.log(1.10) # Length perturbations
+thetaETA = np.log(1.10) # Using a log normal perturbation instead
+thetaPR = np.log(1.01) # Pressure ratio perturbatio
+thetaWL = np.log(1.10) # Using a log normal perturbation instead
+thetaH0 = 0.002
+```
+
+
+
 
